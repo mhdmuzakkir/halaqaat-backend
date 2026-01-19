@@ -1,0 +1,7 @@
+name: Deploy to us.cloudlogin
+on:
+  push:
+    branches: [ main ]
+jobs:
+  deploy:
+    runs

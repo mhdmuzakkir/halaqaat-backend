@@ -1,7 +1,10 @@
-echo "# halaqaat-backend" >> README.md
-git init
-git add README.md
-git commit -m "first commit"
-git branch -M main
-git remote add origin git@github.com:mhdmuzakkir/halaqaat-backend.git
-git push -u origin main
+{
+  "name": "halaqaat-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.0",
+    "cors": "^

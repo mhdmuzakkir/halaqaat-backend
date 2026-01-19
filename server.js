@@ -16,6 +16,13 @@ app.use(express.json());
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Halaqaat Backend Live! Ready for Quran academy halqas.', timestamp: new Date().toISOString() });
 });
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    message: 'Halaqaat Backend Live! 🚀', 
+    status: 'ready for Quran academy halqas & kashf PDFs',
+    timestamp: new Date().toISOString() 
+  });
+});
 
 // MongoDB connection (add after deploy)
 //mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/halaqaat', {

@@ -18,9 +18,10 @@ app.get('/api/test', (req, res) => {
 });
 
 // MongoDB connection (add after deploy)
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('MongoDB error:', err));
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/halaqaat', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
 
 // Basic 404
 app.use('*', (req, res) => {

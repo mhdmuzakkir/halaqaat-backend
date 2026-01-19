@@ -2,22 +2,31 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const helmet = require('helmet');
+
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-const port = process.env.PORT || 3000;
-
+// Middleware
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('MongoDB connected'))
-  .catch(err => console.error('Mongo error:', err));
-
-// Test API
+// Test endpoint
 app.get('/api/test', (req, res) => {
-  res.json({ message: 'Halaqaat backend LIVE on Render!' });
+  res.json({ message: 'Halaqaat Backend Live! Ready for Quran academy halqas.', timestamp: new Date().toISOString() });
 });
 
-app.listen(port, () => {
-  console.log(`Halaqaat backend on port ${port}`);
+// MongoDB connection (add after deploy)
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.error('MongoDB error:', err));
+
+// Basic 404
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+app.listen(PORT, () => {
+  console.log(`Halaqaat server on port ${PORT}`);
 });

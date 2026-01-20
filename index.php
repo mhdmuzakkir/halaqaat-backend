@@ -18,12 +18,12 @@ if ($path == '/api/halqaat' && $method == 'GET') {
 }
 ?>
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ur" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>حلقات الأكاديمية الإسلامية</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <title>اکیڈمی کے حلقات</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;700&family=Jameel+Noori+Nastaliq&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary-color: #b18f6e;
@@ -45,7 +45,7 @@ if ($path == '/api/halqaat' && $method == 'GET') {
         }
         
         body { 
-            font-family: 'Tajawal', 'Noto Kufi Arabic', sans-serif; 
+            font-family: 'Noto Naskh Arabic', serif; 
             background: var(--light-bg); 
             min-height: 100vh; 
             color: var(--text-dark);
@@ -397,9 +397,9 @@ if ($path == '/api/halqaat' && $method == 'GET') {
     <!-- Header -->
     <header>
         <div class="header-container">
-            <h2 class="header-title">🏛️ حلقات الأكاديمية الإسلامية</h2>
+            <h2 class="header-title">🏛️ اکیڈمی کے حلقات</h2>
             <div class="admin-nav">
-                <a href="admin.php">⚙️ الإدارة</a>
+                <a href="admin.php">⚙️ انتظام</a>
             </div>
         </div>
     </header>
@@ -410,29 +410,29 @@ if ($path == '/api/halqaat' && $method == 'GET') {
         <div class="stats-bar" id="stats" style="display:none;">
             <div class="stat">
                 <span class="stat-number" id="total-halqaat">-</span>
-                <span class="stat-label">إجمالي الحلقات</span>
+                <span class="stat-label">کل حلقات</span>
             </div>
             <div class="stat">
                 <span class="stat-number" id="total-students">-</span>
-                <span class="stat-label">إجمالي الطلاب</span>
+                <span class="stat-label">کل طلباء</span>
             </div>
         </div>
         
         <!-- Main Title -->
-        <h1>📚 عرض الحلقات المتاحة</h1>
+        <h1>📚 دستیاب حلقات</h1>
         
         <!-- Halqaat Grid -->
         <div class="halqaat-grid" id="halqaat-list">
-            <div class="loading">🔄 جاري تحميل حلقاتكم...</div>
+            <div class="loading">🔄 حلقات لوڈ ہو رہے ہیں...</div>
         </div>
         
         <!-- Admin Link -->
-        <a href="admin.php" class="admin-link">⚙️ لوحة الإدارة المتقدمة</a>
+        <a href="admin.php" class="admin-link">⚙️ انتظامی صفحہ</a>
     </div>
 
     <!-- Footer -->
     <footer>
-        <p>&copy; 2024 - جمعية مكنون لتحفيظ القرآن الكريم بالرياض | جميع الحقوق محفوظة</p>
+        <p>&copy; 2024 - اسلامی تعلیمی اکیڈمی | تمام حقوق محفوظ ہیں</p>
     </footer>
 
     <script>
@@ -447,7 +447,7 @@ if ($path == '/api/halqaat' && $method == 'GET') {
                 
                 // Check if data is empty
                 if (!data || data.length === 0) {
-                    list.innerHTML = '<div class="error-state"><h2>⚠️ لا توجد حلقات متاحة</h2><p>يرجى التحقق لاحقاً</p></div>';
+                    list.innerHTML = '<div class="error-state"><h2>⚠️ کوئی حلقات دستیاب نہیں</h2><p>براہ کرم بعد میں دوبارہ کوشش کریں</p></div>';
                     stats.style.display = 'none';
                     return;
                 }
@@ -458,10 +458,10 @@ if ($path == '/api/halqaat' && $method == 'GET') {
                     const card = document.createElement('div');
                     card.className = 'halqa-card';
                     card.innerHTML = `
-                        <div class="halqa-name">${h.name || 'غير محدد'}</div>
+                        <div class="halqa-name">${h.name || 'نامعلوم'}</div>
                         <div class="halqa-details">
                             <div class="detail-badge ustad-badge">
-                                👨‍🏫 ${h.ustad || 'غير محدد'}
+                                👨‍🏫 ${h.ustad || 'نامعلوم'}
                             </div>
                             <div class="detail-badge students-badge">
                                 👥 ${h.students || 0} طالب
@@ -481,7 +481,7 @@ if ($path == '/api/halqaat' && $method == 'GET') {
             .catch(e => {
                 console.error(e);
                 document.getElementById('halqaat-list').innerHTML = 
-                    '<div class="error-state"><h2>⚠️ خطأ في الاتصال</h2><p>تحقق من الاتصال بالخادم وحاول مرة أخرى</p><p><a href="admin.php">الذهاب إلى لوحة الإدارة</a></p></div>';
+                    '<div class="error-state"><h2>⚠️ کنکشن میں خرابی</h2><p>براہ کرم سرور کے ساتھ کنکشن کی جانچ کریں اور دوبارہ کوشش کریں</p><p><a href="admin.php">انتظامی صفحہ پر جائیں</a></p></div>';
                 document.getElementById('stats').style.display = 'none';
             });
     </script>

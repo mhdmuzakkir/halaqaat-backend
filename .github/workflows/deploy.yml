@@ -13,5 +13,5 @@ jobs:
       with:
         server: halaqaat.linuxproguru.com
         username: mdmunazir
-        password: ${{ secrets.FTP_PASSWORD }}
+        password: Uhd@1364
         server-dir: /home/www/halaqaat.linuxproguru.com/

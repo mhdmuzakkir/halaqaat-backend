@@ -1,5 +1,5 @@
 <?php
-// halaqa_view.php  (Halaqa details + students list + add student with gender validation)
+// halaqa_view.php  (FULL - dashboard-like sidebar toggle + add students Urdu-only + B1 online API to auto-English)
 require_once __DIR__ . '/db.php';
 
 session_name(defined('SESSION_NAME') ? SESSION_NAME : 'kahaf_session');
@@ -47,12 +47,12 @@ $T = [
 
     'students' => 'طلبہ',
     'add_student' => 'نیا طالبعلم شامل کریں',
-    'full_name_ur' => 'نام (اردو)',
-    'full_name_en' => 'نام (English)',
+    'full_name_ur' => 'نام (اردو/عربی)',
     'save' => 'محفوظ کریں',
 
     'student_added' => 'طالبعلم شامل ہوگیا ✅',
     'err_missing' => 'براہ کرم نام درج کریں۔',
+    'err_script' => 'صرف اردو/عربی حروف لکھیں (English نہیں)۔',
     'err_db' => 'محفوظ نہیں ہوا۔',
     'no_students' => 'ابھی تک کوئی طالبعلم موجود نہیں۔',
 
@@ -85,12 +85,12 @@ $T = [
 
     'students' => 'Students',
     'add_student' => 'Add Student',
-    'full_name_ur' => 'Name (Urdu)',
-    'full_name_en' => 'Name (English)',
+    'full_name_ur' => 'Name (Urdu/Arabic)',
     'save' => 'Save',
 
     'student_added' => 'Student added ✅',
     'err_missing' => 'Please enter a name.',
+    'err_script' => 'Please type only Urdu/Arabic letters (no English).',
     'err_db' => 'Could not save.',
     'no_students' => 'No students yet.',
 
@@ -113,6 +113,55 @@ function normalize_halaqa_gender($g) {
 function is_girl_group($g) {
     $g = strtolower(trim((string)$g));
     return ($g === 'girl' || $g === 'girls');
+}
+
+/**
+ * B1 Online API (MyMemory) to get English from Urdu/Arabic:
+ * https://api.mymemory.translated.net/get?q=...&langpair=auto|en
+ * If API fails, returns empty string.
+ */
+function translate_to_english_b1($text) {
+    $text = trim((string)$text);
+    if ($text === '') return '';
+
+    $url = "https://api.mymemory.translated.net/get?q=" . rawurlencode($text) . "&langpair=auto|en";
+
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 6,
+        CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_USERAGENT => "KahafHalaqat/1.0 (+halaqa_view.php)"
+    ]);
+    $resp = curl_exec($ch);
+    $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($resp === false || $http < 200 || $http >= 300) return '';
+
+    $data = json_decode($resp, true);
+    if (!is_array($data)) return '';
+
+    $out = trim((string)($data['responseData']['translatedText'] ?? ''));
+    // Some APIs return HTML entities sometimes; decode safely
+    if ($out !== '') $out = html_entity_decode($out, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+    return $out;
+}
+
+/**
+ * Validate Urdu/Arabic input:
+ * - must include at least one Arabic-script char
+ * - must NOT include English letters A-Z
+ */
+function is_valid_urdu_arabic_name($s) {
+    $s = trim((string)$s);
+    if ($s === '') return false;
+    if (preg_match('/[A-Za-z]/', $s)) return false;          // reject English letters
+    if (!preg_match('/\p{Arabic}/u', $s)) return false;      // must contain Arabic script (covers Urdu too)
+    return true;
 }
 
 $halaqa_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -140,20 +189,26 @@ $isGirl = ($halaqaGender === 'girl');
 $msg = '';
 $err = '';
 
-// Handle add student
+// Handle add student (Urdu-only input)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_student') {
     $full_name_ur = trim($_POST['full_name_ur'] ?? '');
-    $full_name_en = trim($_POST['full_name_en'] ?? '');
 
-    // Ensure at least one name. students.full_name_en is NOT NULL, so fallback to Urdu if English empty
-    if ($full_name_en === '' && $full_name_ur !== '') {
-        $full_name_en = $full_name_ur;
-    }
-
-    if ($full_name_en === '' && $full_name_ur === '') {
+    if ($full_name_ur === '') {
         $err = $tr['err_missing'];
+    } elseif (!is_valid_urdu_arabic_name($full_name_ur)) {
+        $err = $tr['err_script'];
     } else {
-        $gender = $halaqaGender; // enforce no-mix classes
+        // B1: Online API -> English
+        $full_name_en = translate_to_english_b1($full_name_ur);
+
+        // Safety fallback: DB requires full_name_en NOT NULL
+        if ($full_name_en === '') {
+            // If API gives nothing, keep English same as Urdu (still valid insert)
+            $full_name_en = $full_name_ur;
+        }
+
+        // Enforce no-mix classes: gender comes from halaqa
+        $gender = $halaqaGender; // boy/girl
         $status = 'active';
 
         $st = $conn->prepare("INSERT INTO students (halaqa_id, full_name_en, full_name_ur, gender, status) VALUES (?, ?, ?, ?, ?)");
@@ -222,16 +277,27 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       --sidebar:#3b3b3b;
       --sidebar2:#2f2f2f;
 
-      --boy:#2f6fd6;
-      --girl:#d24e8a;
-      --subah:#ff8c00;
-      --asr:#784614;
+      /* requested colors */
+      --boy:#2f6fd6;      /* blue */
+      --girl:#d24e8a;     /* pink */
+      --subah:#ff8c00;    /* orange */
+      --asr:#6b3f1d;      /* brown */
     }
 
     *{box-sizing:border-box}
     body{ margin:0; background:var(--bg); color:var(--accent); }
 
     .layout{ min-height:100vh; display:grid; grid-template-columns: 280px 1fr; }
+
+    /* PC collapsible sidebar behavior (same as dashboard) */
+    .layout.collapsed{ grid-template-columns: 90px 1fr; }
+    .layout.collapsed .brand .name,
+    .layout.collapsed .brand .sub,
+    .layout.collapsed .nav a span.txt,
+    .layout.collapsed .nav .navDisabled span.txt,
+    .layout.collapsed .sidebarBottom{ display:none; }
+    .layout.collapsed .nav a,
+    .layout.collapsed .nav .navDisabled{ justify-content:center; padding:12px; }
 
     .sidebar{
       background:linear-gradient(180deg, var(--sidebar), var(--sidebar2));
@@ -251,8 +317,10 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       color:#fff; padding:8px 10px; border-radius:12px; font-weight:900; cursor:pointer;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
+    .sideToggle:hover{ background:rgba(255,255,255,.12); }
 
     .nav{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
+
     .nav a, .nav .navDisabled{
       color:#fff; padding:10px 12px; border-radius:12px; font-weight:800; font-size:13px;
       display:flex; align-items:center; justify-content:space-between; gap:10px;
@@ -265,14 +333,10 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
     .nav a.active{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.18); }
 
     .nav .navDisabled{
-      opacity:.45;
-      background:transparent;
-      cursor:not-allowed;
+      opacity:.45; background:transparent; cursor:not-allowed;
     }
 
-    html[dir="rtl"] .nav a, html[dir="rtl"] .nav .navDisabled{
-      padding-left:12px; padding-right:40px;
-    }
+    html[dir="rtl"] .nav a, html[dir="rtl"] .nav .navDisabled{ padding-left:12px; padding-right:40px; }
 
     .sidebarBottom{
       margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.12);
@@ -345,13 +409,15 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       border:1px solid var(--border); font-weight:900; font-size:12px; background:#fff; white-space:nowrap;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-    /* Tag colors */
-    .tag.boy{ background: rgba(47,111,214,.18); border-color: rgba(47,111,214,.55); color:#1b3f86; }
-    .tag.girl{ background: rgba(210,78,138,.18); border-color: rgba(210,78,138,.55); color:#7a1f4a; }
-    .tag.subah{ background: rgba(255,140,0,.22); border-color: rgba(255,140,0,.60); color:#6a3a00; }
-    .tag.asr{ background: rgba(120,70,20,.22); border-color: rgba(120,70,20,.60); color:#4a2a0d; }
-    .tag.neutral{ background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.12); color:#333; }
 
+    /* Requested tag backgrounds + readable text */
+    .tag.boy{ background: var(--boy); border-color: var(--boy); color:#fff; }
+    .tag.girl{ background: var(--girl); border-color: var(--girl); color:#fff; }
+    .tag.subah{ background: var(--subah); border-color: var(--subah); color:#fff; }
+    .tag.asr{ background: var(--asr); border-color: var(--asr); color:#fff; }
+    .tag.neutral{ background: rgba(0,0,0,.06); border-color: rgba(0,0,0,.12); color:#333; }
+
+    /* Mobile sidebar */
     .menuBtn{
       display:none; background:#3e846a; border:1px solid rgba(255,255,255,.6); color:#ffffff;
       padding:10px 12px; border-radius:12px; font-weight:900; font-size:18px; cursor:pointer; line-height:1;
@@ -391,16 +457,18 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       </div>
 
       <nav class="nav">
-        <a class="active" href="halaqa_view.php?id=<?php echo (int)$halaqa_id; ?>"><span><?php echo h($tr['page']); ?></span></a>
-        <a href="dashboard_admin.php"><span><?php echo h($tr['nav_dashboard']); ?></span></a>
-        <a href="halaqaat_admin.php"><span><?php echo h($tr['nav_halqaat']); ?></span></a>
-        <a href="students_admin.php"><span><?php echo h($tr['nav_students']); ?></span></a>
+        <a class="active" href="halaqa_view.php?id=<?php echo (int)$halaqa_id; ?>">
+          <span class="txt"><?php echo h($tr['page']); ?></span>
+        </a>
+        <a href="dashboard_admin.php"><span class="txt"><?php echo h($tr['nav_dashboard']); ?></span></a>
+        <a href="halaqaat_admin.php"><span class="txt"><?php echo h($tr['nav_halqaat']); ?></span></a>
+        <a href="students_admin.php"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
 
-        <!-- disabled (no href placeholders) -->
-        <div class="navDisabled"><span>Ustaaz</span></div>
-        <div class="navDisabled"><span>Exams</span></div>
-        <div class="navDisabled"><span>Reports</span></div>
-        <div class="navDisabled"><span>Settings</span></div>
+        <!-- Disabled (no href placeholders) -->
+        <div class="navDisabled"><span class="txt">Ustaaz</span></div>
+        <div class="navDisabled"><span class="txt">Exams</span></div>
+        <div class="navDisabled"><span class="txt">Reports</span></div>
+        <div class="navDisabled"><span class="txt">Settings</span></div>
       </nav>
 
       <div class="sidebarBottom">
@@ -448,11 +516,12 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
             <form method="post" autocomplete="off">
               <input type="hidden" name="action" value="add_student">
 
+              <!-- Urdu/Arabic only input -->
               <label><?php echo h($tr['full_name_ur']); ?></label>
-              <input name="full_name_ur" value="<?php echo h($_POST['full_name_ur'] ?? ''); ?>">
+              <input name="full_name_ur" value="<?php echo h($_POST['full_name_ur'] ?? ''); ?>" required>
 
-              <label><?php echo h($tr['full_name_en']); ?></label>
-              <input name="full_name_en" value="<?php echo h($_POST['full_name_en'] ?? ''); ?>">
+              <!-- No English input: generated by API -->
+              <input type="hidden" name="full_name_en" value="">
 
               <!-- Gender enforced from halaqa -->
               <div style="margin-top:10px;">
@@ -514,25 +583,46 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
   </div>
 
   <script>
-    function isMobile() { return window.innerWidth <= 980; }
+    function isMobile() {
+      return window.innerWidth <= 980;
+    }
 
     function toggleSidebar(forceOpen) {
       var sb = document.getElementById('sidebar');
       var ov = document.getElementById('overlay');
-      if (!sb || !ov) return;
+      var layout = document.querySelector('.layout');
+      if (!sb || !ov || !layout) return;
 
       if (isMobile()) {
         var open = typeof forceOpen === 'boolean' ? forceOpen : !sb.classList.contains('open');
-        if (open) { sb.classList.add('open'); ov.classList.add('show'); }
-        else { sb.classList.remove('open'); ov.classList.remove('show'); }
+        if (open) {
+          sb.classList.add('open');
+          ov.classList.add('show');
+        } else {
+          sb.classList.remove('open');
+          ov.classList.remove('show');
+        }
+      } else {
+        // PC: collapse/expand sidebar like dashboard
+        layout.classList.toggle('collapsed');
+        sb.classList.remove('open');
+        ov.classList.remove('show');
       }
     }
 
+    // On resize: reset mobile overlay + remove collapsed on mobile
     window.addEventListener('resize', function () {
       var sb = document.getElementById('sidebar');
       var ov = document.getElementById('overlay');
-      if (!sb || !ov) return;
-      if (!isMobile()) { sb.classList.remove('open'); ov.classList.remove('show'); }
+      var layout = document.querySelector('.layout');
+      if (!sb || !ov || !layout) return;
+
+      if (!isMobile()) {
+        sb.classList.remove('open');
+        ov.classList.remove('show');
+      } else {
+        layout.classList.remove('collapsed');
+      }
     });
   </script>
 </body>

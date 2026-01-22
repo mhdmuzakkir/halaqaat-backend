@@ -108,18 +108,14 @@ $fullName = $_SESSION['full_name'] ?? 'Admin';
 
 // -------------------- DB helpers (PHP 5.6 safe) --------------------
 function table_exists($conn, $table) {
-    $stmt = $conn->prepare("SHOW TABLES LIKE ?");
-    if (!$stmt) return false;
-
-    $stmt->bind_param("s", $table);
-    $stmt->execute();
-
-    // Works even if mysqlnd is NOT installed
-    $stmt->store_result();
-    $ok = ($stmt->num_rows > 0);
-    $stmt->close();
-    return $ok;
+    // Table name is controlled by our code (not user input), so this is safe.
+    $table = $conn->real_escape_string($table);
+    $sql = "SHOW TABLES LIKE '" . $table . "'";
+    $res = $conn->query($sql);
+    if (!$res) return false;
+    return ($res->num_rows > 0);
 }
+
 
 function scalar_int($conn, $sql) {
     $res = $conn->query($sql);

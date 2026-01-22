@@ -68,7 +68,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $res = $stmt->get_result();
         $user = $res->fetch_assoc();
         $stmt->close();
-        
+if (defined('APP_DEBUG') && APP_DEBUG && $user) {
+    // TEMP DEBUG (remove after fix)
+    echo "<pre>";
+    echo "DB user found: YES\n";
+    echo "username(db): " . htmlspecialchars($user['username']) . "\n";
+    echo "hash(db): " . htmlspecialchars(substr($user['password_hash'], 0, 30)) . "...\n";
+    echo "password_verify: " . (password_verify($password, $user['password_hash']) ? "TRUE" : "FALSE") . "\n";
+    echo "</pre>";
+    exit;
+}
+
         if (!$user) {
             $error = $tr['invalid'];
         } elseif ((int)$user['is_active'] !== 1) {

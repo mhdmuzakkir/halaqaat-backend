@@ -58,6 +58,10 @@ $T = [
     'err_required' => 'اردو نام لازمی ہے۔',
     'err_db' => 'ڈیٹا محفوظ نہیں ہوا۔',
     'no_data' => 'ابھی تک کوئی ڈیٹا نہیں',
+
+    // NEW
+    'students_count' => 'طلبہ',
+    'open' => 'کھولیں',
   ],
   'en' => [
     'app' => 'Kahf Halaqat',
@@ -94,6 +98,10 @@ $T = [
     'err_required' => 'Urdu name is required.',
     'err_db' => 'Could not save data.',
     'no_data' => 'No data yet',
+
+    // NEW
+    'students_count' => 'Students',
+    'open' => 'Open',
   ],
 ];
 
@@ -101,20 +109,36 @@ $tr = $T[$lang];
 $msg = '';
 $err = '';
 
+// Normalize halaqa gender to final rule: boy/girl
+function normalize_halaqa_gender($g) {
+    $g = strtolower(trim((string)$g));
+    // accept old values too
+    if ($g === 'girls' || $g === 'girl') return 'girl';
+    return 'boy'; // default boys
+}
+function is_girl_group($g) {
+    $g = strtolower(trim((string)$g));
+    return ($g === 'girl' || $g === 'girls');
+}
+
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+
 // Handle create
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ur = trim($_POST['name_ur'] ?? '');
     $name_en = trim($_POST['name_en'] ?? '');
-    $gender  = $_POST['gender'] ?? 'boys';
+    $gender_in  = $_POST['gender'] ?? 'boy';      // can be boys/girls from UI
     $session = $_POST['session'] ?? 'subah';
     $is_active = !empty($_POST['is_active']) ? 1 : 0;
 
-    if (!in_array($gender, ['boys','girls'], true)) $gender = 'boys';
+    // enforce final values
+    $gender  = normalize_halaqa_gender($gender_in); // boy/girl
     if (!in_array($session, ['subah','asr'], true)) $session = 'subah';
 
     if ($name_ur === '') {
         $err = $tr['err_required'];
     } else {
+        // NOTE: halaqaat table columns: name_ur, name_en, gender, session, is_active
         $stmt = $conn->prepare("INSERT INTO halaqaat (name_ur, name_en, gender, session, is_active) VALUES (?, ?, ?, ?, ?)");
         if (!$stmt) {
             $err = $tr['err_db'];
@@ -131,15 +155,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch list
+// Fetch list + students count (single query, no per-row queries)
 $halaqaat = [];
-$res = $conn->query("SELECT id, name_ur, name_en, gender, session, is_active, created_at FROM halaqaat ORDER BY id DESC");
+$sql = "
+  SELECT
+    h.id, h.name_ur, h.name_en, h.gender, h.session, h.is_active, h.created_at,
+    COUNT(s.id) AS students_count
+  FROM halaqaat h
+  LEFT JOIN students s ON s.halaqa_id = h.id
+  GROUP BY h.id, h.name_ur, h.name_en, h.gender, h.session, h.is_active, h.created_at
+  ORDER BY h.id DESC
+";
+$res = $conn->query($sql);
 if ($res) {
     while ($row = $res->fetch_assoc()) $halaqaat[] = $row;
     $res->free();
 }
-
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 ?>
 <!doctype html>
 <html lang="<?php echo h($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
@@ -532,6 +563,21 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
     .checkRow{display:flex; align-items:center; gap:10px; margin-top:10px;}
     .checkRow input{width:auto; transform:scale(1.1);}
 
+    /* NEW: small action button */
+    .btnMini{
+      display:inline-block;
+      padding:6px 10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:#fff;
+      font-weight:900;
+      text-decoration:none;
+      color:var(--accent);
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      white-space:nowrap;
+    }
+    .btnMini:hover{ background:rgba(62,132,106,.08); border-color:rgba(62,132,106,.25); }
+
     /* Mobile sidebar */
     .menuBtn{
       display:none;
@@ -605,7 +651,11 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
       <nav class="nav">
         <a class="dash" href="dashboard_admin.php"><span class="txt"><?php echo h($tr['nav_dashboard']); ?></span></a>
         <a class="active halaqa" href="halaqaat_admin.php"><span class="txt"><?php echo h($tr['nav_halqaat']); ?></span></a>
-        <a class="students" href="#"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
+
+        <!-- CHANGED: no href="#" -->
+        <a class="students" href="students_admin.php"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
+
+        <!-- left as-is for now (modules not created yet) -->
         <a class="ustaaz" href="#"><span class="txt"><?php echo h($tr['nav_ustaaz']); ?></span></a>
         <a class="exams" href="#"><span class="txt"><?php echo h($tr['nav_exams']); ?></span></a>
         <a class="reports" href="#"><span class="txt"><?php echo h($tr['nav_reports']); ?></span></a>
@@ -652,9 +702,12 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
               <div class="row2">
                 <div>
                   <label><?php echo h($tr['gender']); ?></label>
+
+                  <!-- CHANGED: store as boy/girl (still shows Urdu labels) -->
                   <select name="gender">
-                    <option value="boys" <?php echo (($_POST['gender'] ?? 'boys')==='boys')?'selected':''; ?>><?php echo h($tr['boys']); ?></option>
-                    <option value="girls" <?php echo (($_POST['gender'] ?? '')==='girls')?'selected':''; ?>><?php echo h($tr['girls']); ?></option>
+                    <?php $gSel = normalize_halaqa_gender($_POST['gender'] ?? 'boy'); ?>
+                    <option value="boy"  <?php echo ($gSel==='boy')?'selected':'';  ?>><?php echo h($tr['boys']); ?></option>
+                    <option value="girl" <?php echo ($gSel==='girl')?'selected':''; ?>><?php echo h($tr['girls']); ?></option>
                   </select>
                 </div>
 
@@ -687,16 +740,26 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                   <th><?php echo h($tr['name_ur']); ?></th>
                   <th><?php echo h($tr['gender']); ?></th>
                   <th><?php echo h($tr['session']); ?></th>
+
+                  <!-- NEW -->
+                  <th><?php echo h($tr['students_count']); ?></th>
+                  <th><?php echo h($tr['open']); ?></th>
+
                   <th><?php echo h($tr['status']); ?></th>
                 </tr>
               </thead>
               <tbody>
               <?php if (empty($halaqaat)): ?>
-                <tr><td colspan="5" style="color:#777; padding:14px;"><?php echo h($tr['no_data']); ?></td></tr>
+                <tr><td colspan="7" style="color:#777; padding:14px;"><?php echo h($tr['no_data']); ?></td></tr>
               <?php else: ?>
                 <?php foreach ($halaqaat as $hrow): ?>
+                  <?php
+                    $hid = (int)$hrow['id'];
+                    $isGirl = is_girl_group($hrow['gender'] ?? '');
+                    $studentsCount = (int)($hrow['students_count'] ?? 0);
+                  ?>
                   <tr>
-                    <td><?php echo (int)$hrow['id']; ?></td>
+                    <td><?php echo $hid; ?></td>
                     <td>
                       <div style="font-weight:900;"><?php echo h($hrow['name_ur']); ?></div>
                       <?php if (!empty($hrow['name_en'])): ?>
@@ -704,7 +767,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                       <?php endif; ?>
                     </td>
                     <td>
-                      <?php if (($hrow['gender'] ?? '') === 'girls'): ?>
+                      <?php if ($isGirl): ?>
                         <span class="tag secondary"><?php echo h($tr['girls']); ?></span>
                       <?php else: ?>
                         <span class="tag primary"><?php echo h($tr['boys']); ?></span>
@@ -717,6 +780,17 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                         <span class="tag secondary"><?php echo h($tr['subah']); ?></span>
                       <?php endif; ?>
                     </td>
+
+                    <!-- NEW: students count -->
+                    <td><span class="tag"><?php echo $studentsCount; ?></span></td>
+
+                    <!-- NEW: open halaqa in new tab -->
+                    <td>
+                      <a class="btnMini" href="halaqa_view.php?id=<?php echo $hid; ?>" target="_blank" rel="noopener">
+                        <?php echo h($tr['open']); ?>
+                      </a>
+                    </td>
+
                     <td>
                       <?php if ((int)$hrow['is_active'] === 1): ?>
                         <span class="tag primary"><?php echo h($tr['active']); ?></span>
@@ -736,9 +810,7 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
   </div>
 
   <script>
-    function isMobile() {
-      return window.innerWidth <= 980;
-    }
+    function isMobile() { return window.innerWidth <= 980; }
 
     function toggleSidebar(forceOpen) {
       var sb = document.getElementById('sidebar');
@@ -756,14 +828,12 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
           ov.classList.remove('show');
         }
       } else {
-        // PC: collapse/expand sidebar like dashboard
         layout.classList.toggle('collapsed');
         sb.classList.remove('open');
         ov.classList.remove('show');
       }
     }
 
-    // On resize: reset mobile overlay
     window.addEventListener('resize', function () {
       var sb = document.getElementById('sidebar');
       var ov = document.getElementById('overlay');

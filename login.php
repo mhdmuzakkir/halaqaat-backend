@@ -15,7 +15,7 @@ $lang = $_SESSION['lang'] ?? 'ur';
 $T = [
     'ur' => [
         'title' => 'لاگ اِن',
-        'app' => 'كهف حلقات',
+'app' => 'کہف حلقات',
         'username' => 'یوزرنیم',
         'password' => 'پاس ورڈ',
         'login' => 'لاگ اِن کریں',
@@ -128,15 +128,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       box-shadow: 0 8px 30px rgba(0,0,0,.06);
       overflow:hidden;
     }
-    .header{
-      padding:18px 18px 12px 18px;
-      background: linear-gradient(135deg, rgba(177,143,110,.22), rgba(62,132,106,.18));
-      border-bottom:1px solid var(--border);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-    }
+   .header{
+  padding:18px 18px 12px 18px;
+  background: #ffffff;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
     .brand{
       display:flex;
       flex-direction:column;
@@ -273,11 +274,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
           <button class="btn" type="submit"><?php echo htmlspecialchars($tr['login']); ?></button>
         </form>
-      </div>
-
-      <div class="footer">
-        <span class="badge">Theme: #b18f6e / #444444 / #3e846a</span>
-        <span class="badge">RTL: <?php echo $isRtl ? 'ON' : 'OFF'; ?></span>
       </div>
     </div>
   </div>

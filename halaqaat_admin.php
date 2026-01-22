@@ -547,27 +547,6 @@ if ($res) {
     th{font-weight:900; color:#555; background:rgba(177,143,110,.10);}
 
     .tag{
-        /* ===== Tag Colors (requested) ===== */
-.tag.boy{
-  background: rgba(47,111,214,.18);
-  border-color: rgba(47,111,214,.55);
-  color: #1b3f86;
-}
-.tag.girl{
-  background: rgba(210,78,138,.18);
-  border-color: rgba(210,78,138,.55);
-  color: #7a1f4a;
-}
-.tag.subah{
-  background: rgba(255,140,0,.22);
-  border-color: rgba(255,140,0,.60);
-  color: #6a3a00;
-}
-.tag.asr{
-  background: rgba(120,70,20,.22);
-  border-color: rgba(120,70,20,.60);
-  color: #4a2a0d;
-}
       display:inline-block;
       padding:4px 10px;
       border-radius:999px;
@@ -787,21 +766,20 @@ if ($res) {
                         <div style="font-size:12px; color:#666;"><?php echo h($hrow['name_en']); ?></div>
                       <?php endif; ?>
                     </td>
-                   <td>
-  <?php if ($isGirl): ?>
-    <span class="tag girl"><?php echo h($tr['girls']); ?></span>
-  <?php else: ?>
-    <span class="tag boy"><?php echo h($tr['boys']); ?></span>
-  <?php endif; ?>
-</td>
                     <td>
-  <?php if (($hrow['session'] ?? '') === 'asr'): ?>
-    <span class="tag asr"><?php echo h($tr['asr']); ?></span>
-  <?php else: ?>
-    <span class="tag subah"><?php echo h($tr['subah']); ?></span>
-  <?php endif; ?>
-</td>
-
+                      <?php if ($isGirl): ?>
+                        <span class="tag secondary"><?php echo h($tr['girls']); ?></span>
+                      <?php else: ?>
+                        <span class="tag primary"><?php echo h($tr['boys']); ?></span>
+                      <?php endif; ?>
+                    </td>
+                    <td>
+                      <?php if (($hrow['session'] ?? '') === 'asr'): ?>
+                        <span class="tag secondary"><?php echo h($tr['asr']); ?></span>
+                      <?php else: ?>
+                        <span class="tag secondary"><?php echo h($tr['subah']); ?></span>
+                      <?php endif; ?>
+                    </td>
 
                     <!-- NEW: students count -->
                     <td><span class="tag"><?php echo $studentsCount; ?></span></td>

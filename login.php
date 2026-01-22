@@ -68,6 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $res = $stmt->get_result();
         $user = $res->fetch_assoc();
         $stmt->close();
+if (defined('APP_DEBUG') && APP_DEBUG && $user) {
+    // TEMP DEBUG (remove after fix)
+    echo "<pre>";
+    echo "DB user found: YES\n";
+    echo "username(db): " . htmlspecialchars($user['username']) . "\n";
+    echo "hash(db): " . htmlspecialchars(substr($user['password_hash'], 0, 30)) . "...\n";
+    echo "password_verify: " . (password_verify($password, $user['password_hash']) ? "TRUE" : "FALSE") . "\n";
+    echo "</pre>";
+    exit;
+}
 
         if (!$user) {
             $error = $tr['invalid'];
@@ -218,7 +228,6 @@ margin-top:4px;
     }
     input{
           font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-
       width:100%;
       padding:11px 12px;
       border:1px solid var(--border);

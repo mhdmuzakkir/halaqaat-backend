@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 // dashboard_admin.php
 require_once __DIR__ . '/db.php';
 
@@ -102,14 +106,56 @@ $tr = $T[$lang];
 
 $fullName = $_SESSION['full_name'] ?? 'Admin';
 
-// NOTE: For now these are placeholders.
-// Next step we will connect real DB counts (halaqaat, students, etc.)
-$stats = [
-    'halqaat' => 22,
-    'students' => 294,
-    'ustaaz' => 24,
-    'upcoming_exams' => 2,
-];
+// -------------------- DB helpers (PHP 5.6 safe) --------------------
+function table_exists($conn, $table) {
+    $stmt = $conn->prepare("SHOW TABLES LIKE ?");
+    if (!$stmt) return false;
+
+    $stmt->bind_param("s", $table);
+    $stmt->execute();
+
+    // Works even if mysqlnd is NOT installed
+    $stmt->store_result();
+    $ok = ($stmt->num_rows > 0);
+    $stmt->close();
+    return $ok;
+}
+
+function scalar_int($conn, $sql) {
+    $res = $conn->query($sql);
+    if (!$res) return 0;
+    $row = $res->fetch_row();
+    return (int)(isset($row[0]) ? $row[0] : 0);
+}
+
+// -------------------- REAL STATS (safe fallback if tables not created yet) --------------------
+$stats = array(
+    'halqaat' => 0,
+    'students' => 0,
+    'ustaaz' => 0,
+    'upcoming_exams' => 0,
+    'boys' => 0,
+    'girls' => 0
+);
+
+// If your table names are different, change them here:
+$tbl_halqaat = 'halqaat';
+$tbl_students = 'students';
+$tbl_users = 'users';
+$tbl_exams = 'exams'; // or 'exam_sessions' if you use that later
+
+if (table_exists($conn, $tbl_halqaat)) {
+    $stats['halqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halqaat`");
+}
+
+if (table_exists($conn, $tbl_students)) {
+    $stats['students'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students`");
+    $stats['boys']  = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('male','boy','boys')");
+    $stats['girls'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('female','girl','girls')");
+}
+
+if (table_exists($conn, $tbl_users)
+
 
 // Sample cards (we’ll replace with DB later)
 $sampleHalqaat = [
@@ -858,14 +904,14 @@ html[dir="rtl"] .nav a::before{
                     <div class="title"><?php echo htmlspecialchars($tr['boys']); ?></div>
                     <div class="meta"><span class="badge boy">Sample</span></div>
                   </div>
-                  <span class="badge boy">154</span>
+<span class="badge boy"><?php echo (int)$stats['boys']; ?></span>
                 </div>
                 <div class="row">
                   <div class="left">
                     <div class="title"><?php echo htmlspecialchars($tr['girls']); ?></div>
                     <div class="meta"><span class="badge girl">Sample</span></div>
                   </div>
-                  <span class="badge girl">140</span>
+<span class="badge girl"><?php echo (int)$stats['girls']; ?></span>
                 </div>
               </div>
             </div>

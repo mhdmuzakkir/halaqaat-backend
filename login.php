@@ -61,23 +61,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($username === '' || $password === '') {
         $error = $tr['required'];
     } else {
-        // Prepared statement (secure)
         $stmt = $conn->prepare("SELECT id, full_name, username, password_hash, role, is_active FROM users WHERE username = ? LIMIT 1");
         $stmt->bind_param("s", $username);
         $stmt->execute();
         $res = $stmt->get_result();
         $user = $res->fetch_assoc();
         $stmt->close();
-if (defined('APP_DEBUG') && APP_DEBUG && $user) {
-    // TEMP DEBUG (remove after fix)
-    echo "<pre>";
-    echo "DB user found: YES\n";
-    echo "username(db): " . htmlspecialchars($user['username']) . "\n";
-    echo "hash(db): " . htmlspecialchars(substr($user['password_hash'], 0, 30)) . "...\n";
-    echo "password_verify: " . (password_verify($password, $user['password_hash']) ? "TRUE" : "FALSE") . "\n";
-    echo "</pre>";
-    exit;
-}
 
         if (!$user) {
             $error = $tr['invalid'];
@@ -86,7 +75,6 @@ if (defined('APP_DEBUG') && APP_DEBUG && $user) {
         } elseif (!password_verify($password, $user['password_hash'])) {
             $error = $tr['invalid'];
         } else {
-            // Successful login
             session_regenerate_id(true);
             $_SESSION['user_id'] = (int)$user['id'];
             $_SESSION['full_name'] = $user['full_name'];
@@ -103,28 +91,32 @@ if (defined('APP_DEBUG') && APP_DEBUG && $user) {
 <!doctype html>
 <html lang="<?php echo htmlspecialchars($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
 <head>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Nasbody
-    taliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Fonts (FIXED) -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+
   <title><?php echo htmlspecialchars($tr['title']); ?> — <?php echo htmlspecialchars($tr['app']); ?></title>
+
   <style>
- :root{
-  --primary:#3e846a;      /* green */
-  --secondary:#b18f6e;    /* golden brown */
-  --accent:#444444;      /* charcoal */
-  --bg:#f6f2ee;
-  --card:#ffffff;
-  --border:#e7ddd4;
-}
+    :root{
+      --primary:#3e846a;      /* green */
+      --secondary:#b18f6e;    /* golden brown */
+      --accent:#444444;       /* charcoal */
+      --bg:#f6f2ee;
+      --card:#ffffff;
+      --border:#e7ddd4;
+    }
 
     *{box-sizing:border-box}
-body{
-  margin:0;
-  background: var(--bg);
-  color: var(--accent);
-  font-family: 'Noto Nastaliq Urdu', serif; /* DEFAULT for Urdu */
-}
+
+    body{
+      margin:0;
+      background: var(--bg);
+      color: var(--accent);
+      font-family: 'Noto Nastaliq Urdu', serif; /* Urdu default */
+    }
 
     .wrap{
       min-height:100vh;
@@ -133,6 +125,7 @@ body{
       justify-content:center;
       padding:24px;
     }
+
     .card{
       width:100%;
       max-width:420px;
@@ -142,73 +135,75 @@ body{
       box-shadow: 0 8px 30px rgba(0,0,0,.06);
       overflow:hidden;
     }
-.header{
-  font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;  
-padding:28px 22px;
-  background: var(--primary); /* GREEN */
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  border-bottom:4px solid var(--secondary); /* golden brown */
-}
 
+    /* HEADER: modern */
+    .header{
+      padding:28px 22px;
+      background: var(--primary);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:4px solid var(--secondary);
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    }
 
     .brand{
       display:flex;
       flex-direction:column;
-      gap:2px;
+      gap:4px;
     }
-.brand .app{
+
+    .brand .app{
+      font-weight:900;
+      letter-spacing:.6px;
+      color:#ffffff;
+      font-size:22px;
       font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    }
 
-  font-weight:900;
-  letter-spacing:.6px;
-  color:#ffffff;        /* WHITE on green */
-  font-size:22px;       /* BIGGER */
-}
-
-.brand .title{
-  font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-margin-top:4px;
-  font-weight:700;
-  color:rgba(255,255,255,0.9);
-  font-size:14px;
-}
-
+    .brand .title{
+      font-weight:700;
+      color:rgba(255,255,255,0.92);
+      font-size:14px;
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    }
 
     .lang{
       display:flex;
       gap:8px;
       align-items:center;
     }
-.lang a{
+
+    .lang a{
+      text-decoration:none;
+      font-weight:800;
+      font-size:13px;
+      padding:7px 14px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.6);
+      color:#ffffff;
+      background:transparent;
       font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-  text-decoration:none;
-  font-weight:800;
-  font-size:13px;
-  padding:7px 14px;
-  border-radius:999px;
-  border:1px solid rgba(255,255,255,0.6);
-  color:#ffffff;
-  background:transparent;
-}
+    }
 
-.lang a.active{
-  background:var(--secondary); /* GOLDEN */
-  border-color:var(--secondary);
-  color:#ffffff;
-}
-
+    .lang a.active{
+      background:var(--secondary);
+      border-color:var(--secondary);
+      color:#ffffff;
+    }
 
     .body{
       padding:18px;
     }
+
+    /* Urdu content should look Nastaliq */
     .note{
       margin:0 0 14px 0;
       color:#666;
-      font-size:13px;
-      line-height:1.5;
+      font-size:14px;
+      line-height:1.9;
     }
+
     .error{
       margin:0 0 14px 0;
       padding:10px 12px;
@@ -218,65 +213,64 @@ margin-top:4px;
       border-radius:10px;
       font-weight:700;
       font-size:13px;
+      line-height:1.9;
     }
+
+    /* Labels in Urdu = Nastaliq, but English mode should be Montserrat */
+    html[lang="en"] .note,
+    html[lang="en"] .error{
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      line-height:1.6;
+    }
+
     label{
-          font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       display:block;
       font-weight:800;
       margin:10px 0 6px;
+      font-size:14px;
+    }
+
+    html[lang="en"] label{
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       font-size:13px;
     }
+
+    /* Inputs: keep modern for both languages (best UX) */
     input{
-          font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       width:100%;
       padding:11px 12px;
       border:1px solid var(--border);
       border-radius:10px;
       font-size:14px;
       outline:none;
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
+
     input:focus{
       border-color: rgba(62,132,106,.55);
       box-shadow: 0 0 0 4px rgba(62,132,106,.12);
     }
-    .btn{
-         font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-  width:100%;
-  margin-top:16px;
-  padding:12px;
-  border:0;
-  border-radius:12px;
-  font-weight:900;
-  font-size:15px;
-  cursor:pointer;
-  background:var(--primary);
-  color:#fff;
-}
-.btn:hover{
-  filter:brightness(0.95);
-}
 
-    .footer{
-      padding:14px 18px 18px 18px;
-      border-top:1px solid var(--border);
-      font-size:12px;
-      color:#777;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      flex-wrap:wrap;
+    .btn{
+      width:100%;
+      margin-top:16px;
+      padding:12px;
+      border:0;
+      border-radius:12px;
+      font-weight:900;
+      font-size:15px;
+      cursor:pointer;
+      background:var(--primary);
+      color:#fff;
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-    .badge{
-      display:inline-block;
-      padding:4px 8px;
-      border-radius:999px;
-      background: rgba(177,143,110,.18);
-      border:1px solid var(--border);
-      color:var(--charcoal);
-      font-weight:800;
+
+    .btn:hover{
+      filter:brightness(0.95);
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="card">
@@ -314,5 +308,4 @@ margin-top:4px;
     </div>
   </div>
 </body>
-
 </html>

@@ -14,7 +14,6 @@ if (empty($_SESSION['user_id'])) {
     exit;
 }
 if (($_SESSION['role'] ?? '') !== 'admin') {
-    // Non-admins go back to router
     header("Location: dashboard.php");
     exit;
 }
@@ -56,12 +55,10 @@ $T = [
 
         'boys' => 'طلباء',
         'girls' => 'طالبات',
-        'hifz' => 'حفظ',
-        'nazirah' => 'ناظرہ',
-        'qaida' => 'قاعدہ',
         'subah' => 'صبح',
         'asr' => 'عصر',
         'view_all' => 'سب دیکھیں',
+        'sample' => 'نمونہ',
     ],
     'en' => [
         'app' => 'Kahf Halaqat',
@@ -92,12 +89,10 @@ $T = [
 
         'boys' => 'Boys',
         'girls' => 'Girls',
-        'hifz' => 'Hifz',
-        'nazirah' => 'Nazirah',
-        'qaida' => 'Qaida',
         'subah' => 'Subah',
         'asr' => 'Asr',
         'view_all' => 'View all',
+        'sample' => 'Sample',
     ]
 ];
 
@@ -108,14 +103,12 @@ $fullName = $_SESSION['full_name'] ?? 'Admin';
 
 // -------------------- DB helpers (PHP 5.6 safe) --------------------
 function table_exists($conn, $table) {
-    // Table name is controlled by our code (not user input), so this is safe.
     $table = $conn->real_escape_string($table);
     $sql = "SHOW TABLES LIKE '" . $table . "'";
     $res = $conn->query($sql);
     if (!$res) return false;
     return ($res->num_rows > 0);
 }
-
 
 function scalar_int($conn, $sql) {
     $res = $conn->query($sql);
@@ -126,7 +119,7 @@ function scalar_int($conn, $sql) {
 
 // -------------------- REAL STATS (safe fallback if tables not created yet) --------------------
 $stats = array(
-    'halqaat' => 0,
+    'halaqaat' => 0,
     'students' => 0,
     'ustaaz' => 0,
     'upcoming_exams' => 0,
@@ -134,14 +127,14 @@ $stats = array(
     'girls' => 0
 );
 
-// If your table names are different, change them here:
-$tbl_halqaat = 'halqaat';
+// ✅ FIX: your table is halaqaat (not halqaat)
+$tbl_halaqaat = 'halaqaat';
 $tbl_students = 'students';
 $tbl_users = 'users';
-$tbl_exams = 'exams'; // or 'exam_sessions' if you use that later
+$tbl_exams = 'exams';
 
-if (table_exists($conn, $tbl_halqaat)) {
-    $stats['halqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halqaat`");
+if (table_exists($conn, $tbl_halaqaat)) {
+    $stats['halaqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halaqaat`");
 }
 
 if (table_exists($conn, $tbl_students)) {
@@ -155,54 +148,47 @@ if (table_exists($conn, $tbl_users)) {
 }
 
 if (table_exists($conn, $tbl_exams)) {
-    // expects exams table to have exam_date DATE column
     $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_exams` WHERE exam_date >= CURDATE()");
 } elseif (table_exists($conn, 'exam_sessions')) {
     $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `exam_sessions` WHERE exam_date >= CURDATE()");
 }
 
-
-// Sample cards (we’ll replace with DB later)
+// -------------------- Sample cards (RULES UPDATED: no shuba, no timings; only session subah/asr) --------------------
 $sampleHalqaat = [
     [
         'title_ur' => 'حلقۃ الفاتحہ (طلباء)',
         'title_en' => 'Al-Fatiha Boys',
-        'shuba' => 'hifz',
         'gender' => 'boys',
+        'session' => 'subah',
         'count' => 14,
         'ustaaz_ur' => 'محمد احمد',
         'ustaaz_en' => 'Muhammad Ahmed',
-        'subah' => '08:00',
-        'asr' => '16:30',
     ],
     [
         'title_ur' => 'حلقۃ النور (طالبات)',
         'title_en' => 'Al-Noor Girls',
-        'shuba' => 'nazirah',
         'gender' => 'girls',
+        'session' => 'asr',
         'count' => 14,
         'ustaaz_ur' => 'فاطمہ زہرا',
         'ustaaz_en' => 'Fatima Zahra',
-        'subah' => '09:00',
-        'asr' => '17:00',
     ],
     [
         'title_ur' => 'حلقۃ البقرہ (طلباء)',
         'title_en' => 'Al-Baqarah Boys',
-        'shuba' => 'qaida',
         'gender' => 'boys',
+        'session' => 'asr',
         'count' => 12,
         'ustaaz_ur' => 'قاری بلال',
         'ustaaz_en' => 'Qari Bilal',
-        'subah' => '07:30',
-        'asr' => '16:00',
     ],
 ];
 
+// Top students sample (no shuba now)
 $sampleTop = [
-    ['name_ur'=>'عثمان طارق', 'name_en'=>'Usman Tariq', 'shuba'=>'hifz', 'score'=>96],
-    ['name_ur'=>'عائشہ ملک', 'name_en'=>'Ayesha Malik', 'shuba'=>'nazirah', 'score'=>94],
-    ['name_ur'=>'عبداللہ خان', 'name_en'=>'Abdullah Khan', 'shuba'=>'hifz', 'score'=>91],
+    ['name_ur'=>'عثمان طارق', 'name_en'=>'Usman Tariq', 'score'=>96],
+    ['name_ur'=>'عائشہ ملک', 'name_en'=>'Ayesha Malik', 'score'=>94],
+    ['name_ur'=>'عبداللہ خان', 'name_en'=>'Abdullah Khan', 'score'=>91],
 ];
 ?>
 <!doctype html>
@@ -217,7 +203,27 @@ $sampleTop = [
   <title><?php echo htmlspecialchars($tr['dashboard']); ?> — <?php echo htmlspecialchars($tr['app']); ?></title>
 
   <style>
-    /* English mode: use Montserrat everywhere */
+/* ✅ Force Urdu font everywhere in Urdu mode */
+html[lang="ur"] body,
+html[lang="ur"] .sidebar,
+html[lang="ur"] .main,
+html[lang="ur"] .pill,
+html[lang="ur"] .nav a,
+html[lang="ur"] .cardHeader,
+html[lang="ur"] .stat .label,
+html[lang="ur"] .stat .val,
+html[lang="ur"] input,
+html[lang="ur"] .row .title,
+html[lang="ur"] .row .meta,
+html[lang="ur"] .badge,
+html[lang="ur"] .halaqaTitle,
+html[lang="ur"] .halaqaFoot,
+html[lang="ur"] .hero h1,
+html[lang="ur"] .hero p{
+  font-family:'Noto Nastaliq Urdu', serif !important;
+}
+
+/* English mode: use Montserrat everywhere */
 html[lang="en"] body,
 html[lang="en"] .sidebar,
 html[lang="en"] .main,
@@ -226,22 +232,29 @@ html[lang="en"] .nav a,
 html[lang="en"] .cardHeader,
 html[lang="en"] .stat .label,
 html[lang="en"] .stat .val,
-html[lang="en"] input {
-  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+html[lang="en"] input,
+html[lang="en"] .row .title,
+html[lang="en"] .row .meta,
+html[lang="en"] .badge,
+html[lang="en"] .halaqaTitle,
+html[lang="en"] .halaqaFoot,
+html[lang="en"] .hero h1,
+html[lang="en"] .hero p{
+  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
 }
 
     :root{
-      --primary:#3e846a;      /* green */
-      --secondary:#b18f6e;    /* golden brown */
-      --accent:#444444;       /* charcoal */
+      --primary:#3e846a;
+      --secondary:#b18f6e;
+      --accent:#444444;
       --bg:#f6f2ee;
       --card:#ffffff;
       --border:#e7ddd4;
 
-      --boy:#2f6fd6;          /* allowed blue for boys */
-      --girl:#d24e8a;         /* pink for girls */
+      --boy:#2f6fd6;
+      --girl:#d24e8a;
 
-      --sidebar:#3b3b3b;      /* keep sidebar dark (not green/gold) */
+      --sidebar:#3b3b3b;
       --sidebar2:#2f2f2f;
     }
 
@@ -254,14 +267,12 @@ html[lang="en"] input {
       font-family:'Noto Nastaliq Urdu', serif;
     }
 
-    /* Layout */
     .layout{
       min-height:100vh;
       display:grid;
       grid-template-columns: 280px 1fr;
     }
 
-    /* Sidebar */
     .sidebar{
       background:linear-gradient(180deg, var(--sidebar), var(--sidebar2));
       color:#fff;
@@ -291,40 +302,29 @@ html[lang="en"] input {
       opacity:.85;
     }
     .sideToggle{
-  border:1px solid rgba(255,255,255,.25);
-  background:rgba(255,255,255,.08);
-  color:#fff;
-  padding:8px 10px;
-  border-radius:12px;
-  font-weight:900;
-  cursor:pointer;
-  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-}
-.sideToggle:hover{ background:rgba(255,255,255,.12); }
+      border:1px solid rgba(255,255,255,.25);
+      background:rgba(255,255,255,.08);
+      color:#fff;
+      padding:8px 10px;
+      border-radius:12px;
+      font-weight:900;
+      cursor:pointer;
+    }
+    .sideToggle:hover{ background:rgba(255,255,255,.12); }
 
-/* PC collapsible sidebar behavior */
-.layout.collapsed{
-  grid-template-columns: 90px 1fr;
-}
-.layout.collapsed .brand .name,
-.layout.collapsed .brand .sub,
-.layout.collapsed .nav a span.txt,
-.layout.collapsed .sidebarBottom{
-  display:none;
-}
-.layout.collapsed .nav a{
-  justify-content:center;
-  padding:12px;
-}
-.layout.collapsed .nav a .ico{
-  width:22px;
-  display:inline-flex;
-  justify-content:center;
-  align-items:center;
-}
-.nav a{
-  gap:10px;
-}
+    .layout.collapsed{
+      grid-template-columns: 90px 1fr;
+    }
+    .layout.collapsed .brand .name,
+    .layout.collapsed .brand .sub,
+    .layout.collapsed .nav a span.txt,
+    .layout.collapsed .sidebarBottom{
+      display:none;
+    }
+    .layout.collapsed .nav a{
+      justify-content:center;
+      padding:12px;
+    }
 
     .nav{
       display:flex;
@@ -345,13 +345,59 @@ html[lang="en"] input {
       gap:10px;
       background:transparent;
       border:1px solid rgba(255,255,255,.10);
+      position:relative;
+      padding-left:40px;
     }
+    html[dir="rtl"] .nav a{
+      padding-left:12px;
+      padding-right:40px;
+    }
+
     .nav a.active{
       background:rgba(255,255,255,.10);
       border-color:rgba(255,255,255,.18);
     }
     .nav a:hover{
       background:rgba(255,255,255,.08);
+    }
+
+    .nav a::before{
+      content:'';
+      position:absolute;
+      width:16px;
+      height:16px;
+      background:rgba(255,255,255,.9);
+      mask-size:contain;
+      mask-repeat:no-repeat;
+      mask-position:center;
+      -webkit-mask-size:contain;
+      -webkit-mask-repeat:no-repeat;
+      -webkit-mask-position:center;
+    }
+
+    html[dir="ltr"] .nav a::before{ left:12px; }
+    html[dir="rtl"] .nav a::before{ right:12px; }
+
+    .nav a.dash::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>');
+    }
+    .nav a.halaqa::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>');
+    }
+    .nav a.students::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>');
+    }
+    .nav a.ustaaz::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>');
+    }
+    .nav a.exams::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>');
+    }
+    .nav a.reports::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm4 0h14v-2H7v2zm0-4h14v-2H7v2z"/></svg>');
+    }
+    .nav a.settings::before{
+      -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.11-.2-.36-.28-.57-.22l-2.39.96c-.5-.38-1.04-.7-1.64-.94L14.5 2h-5l-.37 2.35c-.6.24-1.14.56-1.64.94l-2.39-.96c-.21-.06-.46.02-.57.22L2.61 7.87c-.11.2-.06.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52c-.18.14-.23.41-.12.61l1.92 3.32c.11.2.36.28.57.22l2.39-.96c.5.38 1.04.7 1.64.94L9.5 22h5l.37-2.35c.6-.24 1.14-.56 1.64-.94l2.39.96c.21.06.46-.02.57-.22l1.92-3.32c.11-.2.06-.47-.12-.61l-2.03-1.58z"/></svg>');
     }
 
     .sidebarBottom{
@@ -362,71 +408,9 @@ html[lang="en"] input {
       flex-direction:column;
       gap:10px;
     }
-    /* Sidebar icons (white, simple, no emoji) */
-.nav a{
-  position:relative;
-  padding-left:40px;
-}
 
-html[dir="rtl"] .nav a{
-  padding-left:12px;
-  padding-right:40px;
-}
+    .main{ padding:18px; }
 
-.nav a::before{
-  content:'';
-  position:absolute;
-  width:16px;
-  height:16px;
-  background:rgba(255,255,255,.9);
-  mask-size:contain;
-  mask-repeat:no-repeat;
-  mask-position:center;
-  -webkit-mask-size:contain;
-  -webkit-mask-repeat:no-repeat;
-  -webkit-mask-position:center;
-}
-
-/* LTR icon position */
-html[dir="ltr"] .nav a::before{
-  left:12px;
-}
-
-/* RTL icon position */
-html[dir="rtl"] .nav a::before{
-  right:12px;
-}
-
-/* Individual icons */
-.nav a.dash::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>');
-}
-.nav a.halaqa::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>');
-}
-.nav a.students::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>');
-}
-.nav a.ustaaz::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>');
-}
-.nav a.exams::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>');
-}
-.nav a.reports::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm4 0h14v-2H7v2zm0-4h14v-2H7v2z"/></svg>');
-}
-.nav a.settings::before{
-  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.11-.2-.36-.28-.57-.22l-2.39.96c-.5-.38-1.04-.7-1.64-.94L14.5 2h-5l-.37 2.35c-.6.24-1.14.56-1.64.94l-2.39-.96c-.21-.06-.46.02-.57.22L2.61 7.87c-.11.2-.06.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52c-.18.14-.23.41-.12.61l1.92 3.32c.11.2.36.28.57.22l2.39-.96c.5.38 1.04.7 1.64.94L9.5 22h5l.37-2.35c.6-.24 1.14-.56 1.64-.94l2.39.96c.21.06.46-.02.57-.22l1.92-3.32c.11-.2.06-.47-.12-.61l-2.03-1.58z"/></svg>');
-}
-
-
-    /* Main */
-    .main{
-      padding:18px;
-    }
-
-    /* Topbar (search + controls) */
     .topbar{
       display:flex;
       align-items:center;
@@ -455,8 +439,8 @@ html[dir="rtl"] .nav a::before{
       font-size:14px;
       background:transparent;
       color:var(--accent);
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
+
     .controls{
       display:flex;
       align-items:center;
@@ -472,21 +456,18 @@ html[dir="rtl"] .nav a::before{
       color:var(--accent);
       font-weight:900;
       font-size:13px;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-.pill.active{
-  background: var(--secondary);   /* golden brown */
-  border-color: var(--secondary);
-  color: #ffffff;                /* white text */
-}
-
+    .pill.active{
+      background: var(--secondary);
+      border-color: var(--secondary);
+      color: #ffffff;
+    }
     .pill.logout{
       background:var(--primary);
       color:#fff;
       border-color:var(--primary);
     }
 
-    /* Hero */
     .hero{
       background:linear-gradient(90deg, rgba(68,68,68,.92), rgba(68,68,68,.70));
       color:#fff;
@@ -508,13 +489,7 @@ html[dir="rtl"] .nav a::before{
       line-height:1.8;
       font-size:14px;
     }
-    html[lang="en"] .hero h1,
-    html[lang="en"] .hero p{
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-      line-height:1.4;
-    }
 
-    /* Stat cards */
     .stats{
       display:grid;
       grid-template-columns: repeat(4, minmax(0,1fr));
@@ -552,7 +527,6 @@ html[dir="rtl"] .nav a::before{
     .stat.primary{border-left:6px solid var(--primary);}
     .stat.secondary{border-left:6px solid var(--secondary);}
 
-    /* Content grid */
     .grid{
       display:grid;
       grid-template-columns: 1.2fr .8fr;
@@ -582,7 +556,6 @@ html[dir="rtl"] .nav a::before{
     }
     .cardBody{padding:14px;}
 
-    /* Lists */
     .list{
       display:flex;
       flex-direction:column;
@@ -612,13 +585,9 @@ html[dir="rtl"] .nav a::before{
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    html[lang="en"] .row .title{
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-    }
     .row .meta{
       font-size:12px;
       color:#666;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       display:flex;
       gap:8px;
       flex-wrap:wrap;
@@ -629,7 +598,6 @@ html[dir="rtl"] .nav a::before{
       border-radius:999px;
       font-size:12px;
       font-weight:900;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       border:1px solid var(--border);
       background:#fff;
       color:var(--accent);
@@ -640,7 +608,6 @@ html[dir="rtl"] .nav a::before{
     .badge.boy{ background: rgba(47,111,214,.12); border-color: rgba(47,111,214,.35); color: #1c4ea8; }
     .badge.girl{ background: rgba(210,78,138,.12); border-color: rgba(210,78,138,.35); color: #9c2e63; }
 
-    /* Halaqa cards */
     .halaqaGrid{
       display:grid;
       grid-template-columns: repeat(3, minmax(0,1fr));
@@ -671,8 +638,6 @@ html[dir="rtl"] .nav a::before{
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    html[lang="en"] .halaqaTitle{
-    }
     .halaqaMeta{
       display:flex;
       gap:8px;
@@ -688,67 +653,61 @@ html[dir="rtl"] .nav a::before{
       font-size:12px;
     }
 
-    /* Mobile sidebar */
-  .menuBtn{
-  display:none;
-  background:#3e846a;
-  border:1px solid rgba(255,255,255,.6);
-  color:#ffffff;                 /* ✅ WHITE icon */
-  padding:10px 12px;
-  border-radius:12px;
-  font-weight:900;
-  font-size:18px;
-  cursor:pointer;
-  line-height:1;
-}
-.menuBtn:focus,
-.menuBtn:active{
-  outline:none;
-  box-shadow:none;
-}
+    .menuBtn{
+      display:none;
+      background:#3e846a;
+      border:1px solid rgba(255,255,255,.6);
+      color:#ffffff;
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:900;
+      font-size:18px;
+      cursor:pointer;
+      line-height:1;
+    }
+    .menuBtn:focus,
+    .menuBtn:active{
+      outline:none;
+      box-shadow:none;
+    }
 
+    @media (max-width: 980px){
+      .layout{grid-template-columns: 1fr;}
+      .main{padding:16px;}
+      .menuBtn{display:inline-block;}
 
-   @media (max-width: 980px){
-  .layout{grid-template-columns: 1fr;}
-  .main{padding:16px;}
-  .menuBtn{display:inline-block;}
+      .sidebar{
+        position:fixed;
+        z-index:50;
+        top:0; bottom:0;
+        width:280px;
+        overflow:auto;
+        transition:transform .2s ease;
+      }
 
-  .sidebar{
-    position:fixed;
-    z-index:50;
-    top:0; bottom:0;
-    width:280px;
-    overflow:auto;
-    transition:transform .2s ease;
-  }
+      html[dir="ltr"] .sidebar{
+        left:0;
+        transform:translateX(-110%);
+      }
 
-  /* LTR (English): hide to the LEFT */
-  html[dir="ltr"] .sidebar{
-    left:0;
-    transform:translateX(-110%);
-  }
+      html[dir="rtl"] .sidebar{
+        right:0;
+        transform:translateX(110%);
+      }
 
-  /* RTL (Urdu): hide to the RIGHT */
-  html[dir="rtl"] .sidebar{
-    right:0;
-    transform:translateX(110%);
-  }
+      .sidebar.open{
+        transform:translateX(0) !important;
+      }
 
-  /* Open state (both) */
-  .sidebar.open{
-    transform:translateX(0) !important;
-  }
-
-  .overlay{
-    display:none;
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,.35);
-    z-index:40;
-  }
-  .overlay.show{display:block;}
-}
-
+      .overlay{
+        display:none;
+        position:fixed;
+        inset:0;
+        background:rgba(0,0,0,.35);
+        z-index:40;
+      }
+      .overlay.show{display:block;}
+    }
   </style>
 </head>
 
@@ -758,28 +717,24 @@ html[dir="rtl"] .nav a::before{
   <div class="layout">
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-     <div class="brand">
-  <div>
-    <div class="name"><?php echo htmlspecialchars($tr['app']); ?></div>
-    <div class="sub"><?php echo htmlspecialchars($tr['dashboard']); ?></div>
-  </div>
-  <button class="sideToggle" type="button" onclick="toggleSidebar()">
-    ☰
-  </button>
-</div>
+      <div class="brand">
+        <div>
+          <div class="name"><?php echo htmlspecialchars($tr['app']); ?></div>
+          <div class="sub"><?php echo htmlspecialchars($tr['dashboard']); ?></div>
+        </div>
+        <button class="sideToggle" type="button" onclick="toggleSidebar()">☰</button>
+      </div>
 
-
-<nav class="nav">
-  <a class="active dash" href="dashboard_admin.php"><span class="txt"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></span></a>
-  <a class="halaqa" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></span></a>
-  <a class="students" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_students']); ?></span></a>
-  <a class="ustaaz" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></span></a>
-  <a class="exams" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_exams']); ?></span></a>
-  <a class="reports" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_reports']); ?></span></a>
-  <a class="settings" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_settings']); ?></span></a>
-</nav>
-
-
+      <nav class="nav">
+        <a class="active dash" href="dashboard_admin.php"><span class="txt"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></span></a>
+        <!-- ✅ FIX: halaqaat link -->
+        <a class="halaqa" href="halaqaat_admin.php"><span class="txt"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></span></a>
+        <a class="students" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_students']); ?></span></a>
+        <a class="ustaaz" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></span></a>
+        <a class="exams" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_exams']); ?></span></a>
+        <a class="reports" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_reports']); ?></span></a>
+        <a class="settings" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_settings']); ?></span></a>
+      </nav>
 
       <div class="sidebarBottom">
         <a class="navLink pill logout" style="text-align:center;" href="logout.php"><?php echo htmlspecialchars($tr['logout']); ?></a>
@@ -789,7 +744,7 @@ html[dir="rtl"] .nav a::before{
     <!-- Main -->
     <main class="main">
       <div class="topbar">
-<button class="menuBtn" type="button" onclick="toggleSidebar()">☰</button>
+        <button class="menuBtn" type="button" onclick="toggleSidebar()">☰</button>
 
         <div class="search">
           <input type="text" placeholder="<?php echo htmlspecialchars($tr['search']); ?>">
@@ -823,7 +778,7 @@ html[dir="rtl"] .nav a::before{
         </div>
         <div class="stat primary">
           <div class="label"><?php echo htmlspecialchars($tr['stat_total_halqaat']); ?></div>
-          <div class="val"><?php echo (int)$stats['halqaat']; ?></div>
+          <div class="val"><?php echo (int)$stats['halaqaat']; ?></div>
         </div>
       </section>
 
@@ -841,22 +796,23 @@ html[dir="rtl"] .nav a::before{
                   <div class="halaqaTitle">
                     <?php echo htmlspecialchars($lang==='ur' ? $h['title_ur'] : $h['title_en']); ?>
                   </div>
+
                   <div class="halaqaMeta">
                     <span class="badge <?php echo $h['gender']==='boys' ? 'boy' : 'girl'; ?>">
                       <?php echo htmlspecialchars($h['gender']==='boys' ? $tr['boys'] : $tr['girls']); ?>
                     </span>
+
+                    <!-- ✅ session badge -->
                     <span class="badge secondary">
-                      <?php
-                        $sh = $h['shuba'];
-                        echo htmlspecialchars($tr[$sh] ?? $sh);
-                      ?>
+                      <?php echo htmlspecialchars(($h['session'] ?? 'subah') === 'asr' ? $tr['asr'] : $tr['subah']); ?>
                     </span>
+
                     <span class="badge primary"><?php echo (int)$h['count']; ?></span>
                   </div>
 
                   <div class="halaqaFoot">
                     <span><?php echo htmlspecialchars($lang==='ur' ? $h['ustaaz_ur'] : $h['ustaaz_en']); ?></span>
-                    <span><?php echo htmlspecialchars($tr['subah']); ?> <?php echo htmlspecialchars($h['subah']); ?> • <?php echo htmlspecialchars($tr['asr']); ?> <?php echo htmlspecialchars($h['asr']); ?></span>
+                    <span><?php echo htmlspecialchars($tr['sample']); ?></span>
                   </div>
                 </div>
               <?php endforeach; ?>
@@ -875,7 +831,7 @@ html[dir="rtl"] .nav a::before{
               <div class="list">
                 <div class="row">
                   <div class="left">
-                    <div class="title">2026-02-05 — <?php echo htmlspecialchars($tr['hifz']); ?></div>
+                    <div class="title">2026-02-05 — Exam</div>
                     <div class="meta">
                       <span class="badge primary"><?php echo htmlspecialchars($tr['boys']); ?></span>
                       <span class="badge secondary">10:00</span>
@@ -886,7 +842,7 @@ html[dir="rtl"] .nav a::before{
 
                 <div class="row">
                   <div class="left">
-                    <div class="title">2026-02-08 — <?php echo htmlspecialchars($tr['nazirah']); ?></div>
+                    <div class="title">2026-02-08 — Exam</div>
                     <div class="meta">
                       <span class="badge primary"><?php echo htmlspecialchars($tr['girls']); ?></span>
                       <span class="badge secondary">11:00</span>
@@ -907,16 +863,16 @@ html[dir="rtl"] .nav a::before{
                 <div class="row">
                   <div class="left">
                     <div class="title"><?php echo htmlspecialchars($tr['boys']); ?></div>
-                    <div class="meta"><span class="badge boy">Sample</span></div>
+                    <div class="meta"><span class="badge boy"><?php echo htmlspecialchars($tr['sample']); ?></span></div>
                   </div>
-<span class="badge boy"><?php echo (int)$stats['boys']; ?></span>
+                  <span class="badge boy"><?php echo (int)$stats['boys']; ?></span>
                 </div>
                 <div class="row">
                   <div class="left">
                     <div class="title"><?php echo htmlspecialchars($tr['girls']); ?></div>
-                    <div class="meta"><span class="badge girl">Sample</span></div>
+                    <div class="meta"><span class="badge girl"><?php echo htmlspecialchars($tr['sample']); ?></span></div>
                   </div>
-<span class="badge girl"><?php echo (int)$stats['girls']; ?></span>
+                  <span class="badge girl"><?php echo (int)$stats['girls']; ?></span>
                 </div>
               </div>
             </div>
@@ -935,7 +891,7 @@ html[dir="rtl"] .nav a::before{
                         <?php echo htmlspecialchars(($i+1) . '. ' . ($lang==='ur' ? $s['name_ur'] : $s['name_en'])); ?>
                       </div>
                       <div class="meta">
-                        <span class="badge secondary"><?php echo htmlspecialchars($tr[$s['shuba']] ?? $s['shuba']); ?></span>
+                        <span class="badge secondary"><?php echo htmlspecialchars($tr['sample']); ?></span>
                       </div>
                     </div>
                     <span class="badge primary"><?php echo (int)$s['score']; ?>/100</span>
@@ -952,9 +908,7 @@ html[dir="rtl"] .nav a::before{
   </div>
 
  <script>
-  function isMobile() {
-    return window.innerWidth <= 980;
-  }
+  function isMobile() { return window.innerWidth <= 980; }
 
   function toggleSidebar(forceOpen) {
     var sb = document.getElementById('sidebar');
@@ -963,7 +917,6 @@ html[dir="rtl"] .nav a::before{
     if (!sb || !ov || !layout) return;
 
     if (isMobile()) {
-      // Mobile: slide-in sidebar
       var open = typeof forceOpen === 'boolean' ? forceOpen : !sb.classList.contains('open');
       if (open) {
         sb.classList.add('open');
@@ -973,20 +926,16 @@ html[dir="rtl"] .nav a::before{
         ov.classList.remove('show');
       }
     } else {
-      // PC: collapse/expand sidebar
       layout.classList.toggle('collapsed');
-      // ensure mobile overlay is closed
       sb.classList.remove('open');
       ov.classList.remove('show');
     }
   }
 
-  // close on overlay click
   document.getElementById('overlay')?.addEventListener('click', function () {
     toggleSidebar(false);
   });
 
-  // On resize: reset mobile overlay
   window.addEventListener('resize', function () {
     var sb = document.getElementById('sidebar');
     var ov = document.getElementById('overlay');
@@ -997,7 +946,6 @@ html[dir="rtl"] .nav a::before{
       sb.classList.remove('open');
       ov.classList.remove('show');
     } else {
-      // On mobile, keep PC collapsed state off
       layout.classList.remove('collapsed');
     }
   });

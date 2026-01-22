@@ -28,7 +28,7 @@ $T = [
     ],
     'en' => [
         'title' => 'Login',
-        'app' => 'Kahaf Halaqat',
+        'app' => 'Kahf Halaqat',
         'username' => 'Username',
         'password' => 'Password',
         'login' => 'Sign in',

@@ -1,5 +1,5 @@
 <?php
-// halaqa_view.php  (FULL - dashboard-like sidebar toggle + add students Urdu-only + B1 online API to auto-English)
+// halaqa_view.php (FULL - dashboard-like sidebar toggle + students add/list + remove/delete + removed section)
 require_once __DIR__ . '/db.php';
 
 session_name(defined('SESSION_NAME') ? SESSION_NAME : 'kahaf_session');
@@ -28,7 +28,7 @@ $T = [
     'page' => 'حلقہ تفصیل',
     'nav_dashboard' => 'ڈیش بورڈ',
     'nav_halqaat' => 'حلقات',
-    'nav_students' => 'طلباء',
+    'nav_students' => 'طلبہ',
     'logout' => 'لاگ آؤٹ',
     'switch_en' => 'English',
     'switch_ur' => 'اردو',
@@ -40,8 +40,11 @@ $T = [
     'status' => 'اسٹیٹس',
     'active' => 'فعال',
     'inactive' => 'غیر فعال',
-    'boys' => 'طلباء',
-    'girls' => 'طالبات',
+
+    // singular
+    'boy' => 'طالب علم',
+    'girl' => 'طالبہ',
+
     'subah' => 'صبح',
     'asr' => 'عصر',
 
@@ -60,6 +63,25 @@ $T = [
     'tbl_gender' => 'جنس',
     'tbl_status' => 'اسٹیٹس',
     'tbl_created' => 'تاریخ',
+    'tbl_actions' => 'ایکشن',
+
+    'remove' => 'ہٹائیں',
+    'delete' => 'ڈیلیٹ',
+    'restore' => 'بحال کریں',
+
+    'removed_students' => 'ہٹائے گئے طلبہ',
+    'removed_type' => 'قسم',
+    'removed_reason' => 'وجہ',
+    'removed_at' => 'ہٹانے کی تاریخ',
+
+    'type_left' => 'چھوڑ دیا',
+    'type_removed' => 'ہٹایا گیا',
+    'type_changed' => 'حلقہ تبدیل',
+    'remove_confirm' => 'کیا آپ واقعی ہٹانا چاہتے ہیں؟',
+    'delete_confirm' => 'کیا آپ واقعی ڈیلیٹ کرنا چاہتے ہیں؟ یہ واپس نہیں آئے گا۔',
+    'student_removed' => 'طالبعلم ہٹا دیا گیا ✅',
+    'student_deleted' => 'طالبعلم ڈیلیٹ ہوگیا ✅',
+    'student_restored' => 'طالبعلم بحال ہوگیا ✅',
   ],
   'en' => [
     'app' => 'Kahf Halaqat',
@@ -78,8 +100,11 @@ $T = [
     'status' => 'Status',
     'active' => 'Active',
     'inactive' => 'Inactive',
-    'boys' => 'Boys',
-    'girls' => 'Girls',
+
+    // singular
+    'boy' => 'Boy',
+    'girl' => 'Girl',
+
     'subah' => 'Subah',
     'asr' => 'Asr',
 
@@ -98,6 +123,25 @@ $T = [
     'tbl_gender' => 'Gender',
     'tbl_status' => 'Status',
     'tbl_created' => 'Created',
+    'tbl_actions' => 'Actions',
+
+    'remove' => 'Remove',
+    'delete' => 'Delete',
+    'restore' => 'Restore',
+
+    'removed_students' => 'Removed Students',
+    'removed_type' => 'Type',
+    'removed_reason' => 'Reason',
+    'removed_at' => 'Removed At',
+
+    'type_left' => 'Left',
+    'type_removed' => 'Removed',
+    'type_changed' => 'Changed Halaqa',
+    'remove_confirm' => 'Are you sure you want to remove?',
+    'delete_confirm' => 'Are you sure you want to delete permanently?',
+    'student_removed' => 'Student removed ✅',
+    'student_deleted' => 'Student deleted ✅',
+    'student_restored' => 'Student restored ✅',
   ],
 ];
 
@@ -105,75 +149,22 @@ $tr = $T[$lang];
 
 function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 
+/** final: boy/girl only */
 function normalize_halaqa_gender($g) {
     $g = strtolower(trim((string)$g));
     if ($g === 'girls' || $g === 'girl') return 'girl';
     return 'boy';
 }
-function is_girl_group($g) {
-    $g = strtolower(trim((string)$g));
-    return ($g === 'girl' || $g === 'girls');
-}
 
-/**
- * B1 Online API (MyMemory) to get English from Urdu/Arabic:
- * https://api.mymemory.translated.net/get?q=...&langpair=auto|en
- * If API fails, returns empty string.
- */
-function transliterate_to_english_b1($text) {
-    $text = trim((string)$text);
-    if ($text === '') return '';
-
-    // Put these in db.php or config.php ideally
-    $key    = defined('AZURE_TRANSLATOR_KEY') ? AZURE_TRANSLATOR_KEY : '';
-    $region = defined('AZURE_TRANSLATOR_REGION') ? AZURE_TRANSLATOR_REGION : '';
-    $ep     = defined('AZURE_TRANSLATOR_ENDPOINT') ? AZURE_TRANSLATOR_ENDPOINT : 'https://api.cognitive.microsofttranslator.com';
-
-    if ($key === '' || $region === '') return '';
-
-    $url = rtrim($ep, '/') . "/transliterate?api-version=3.0&language=ar&fromScript=Arab&toScript=Latn";
-
-    $body = json_encode([['Text' => $text]], JSON_UNESCAPED_UNICODE);
-
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 6,
-        CURLOPT_CONNECTTIMEOUT => 4,
-        CURLOPT_HTTPHEADER => [
-            "Content-Type: application/json",
-            "Ocp-Apim-Subscription-Key: {$key}",
-            "Ocp-Apim-Subscription-Region: {$region}",
-        ],
-        CURLOPT_POSTFIELDS => $body,
-    ]);
-
-    $resp = curl_exec($ch);
-    $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($resp === false || $http < 200 || $http >= 300) return '';
-
-    $data = json_decode($resp, true);
-    if (!is_array($data)) return '';
-
-    // Response shape: [ { "text": "...", "script": "...", "translations":[{"text":"...","script":"Latn"}] } ]
-    $out = trim((string)($data[0]['translations'][0]['text'] ?? ''));
-    return $out;
-}
-
-
-/**
- * Validate Urdu/Arabic input:
+/** Validate Urdu/Arabic input:
  * - must include at least one Arabic-script char
  * - must NOT include English letters A-Z
  */
 function is_valid_urdu_arabic_name($s) {
     $s = trim((string)$s);
     if ($s === '') return false;
-    if (preg_match('/[A-Za-z]/', $s)) return false;          // reject English letters
-    if (!preg_match('/\p{Arabic}/u', $s)) return false;      // must contain Arabic script (covers Urdu too)
+    if (preg_match('/[A-Za-z]/', $s)) return false;
+    if (!preg_match('/\p{Arabic}/u', $s)) return false;
     return true;
 }
 
@@ -197,63 +188,175 @@ if (!$halaqa) {
 }
 
 $halaqaGender = normalize_halaqa_gender($halaqa['gender'] ?? 'boy'); // boy/girl
-$isGirl = ($halaqaGender === 'girl');
+$isGirlHalaqa = ($halaqaGender === 'girl');
 
 $msg = '';
 $err = '';
 
-// Handle add student (Urdu-only input)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_student') {
-    $full_name_ur = trim($_POST['full_name_ur'] ?? '');
+/** Security: ensure a student id belongs to current halaqa (for remove/delete/restore) */
+function student_belongs_to_halaqa(mysqli $conn, int $student_id, int $halaqa_id): bool {
+    $st = $conn->prepare("SELECT id FROM students WHERE id=? AND halaqa_id=? LIMIT 1");
+    if (!$st) return false;
+    $st->bind_param("ii", $student_id, $halaqa_id);
+    $st->execute();
+    $ok = (bool)$st->get_result()->fetch_assoc();
+    $st->close();
+    return $ok;
+}
 
-    if ($full_name_ur === '') {
-        $err = $tr['err_missing'];
-    } elseif (!is_valid_urdu_arabic_name($full_name_ur)) {
-        $err = $tr['err_script'];
-    } else {
-        // B1: Online API -> English
-$full_name_en = transliterate_to_english_b1($full_name_ur);
+/* Handle actions */
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
 
-        // Safety fallback: DB requires full_name_en NOT NULL
-        if ($full_name_en === '') {
-            // If API gives nothing, keep English same as Urdu (still valid insert)
+    // ADD STUDENT (Urdu/Arabic only)
+    if ($action === 'add_student') {
+        $full_name_ur = trim($_POST['full_name_ur'] ?? '');
+
+        if ($full_name_ur === '') {
+            $err = $tr['err_missing'];
+        } elseif (!is_valid_urdu_arabic_name($full_name_ur)) {
+            $err = $tr['err_script'];
+        } else {
+            // No transliteration/translation: keep EN same as UR for DB NOT NULL
             $full_name_en = $full_name_ur;
+
+            // enforce halaqa gender (no mix)
+            $gender = $halaqaGender; // boy/girl
+            $status = 'active';
+
+            $st = $conn->prepare("INSERT INTO students (halaqa_id, full_name_en, full_name_ur, gender, status) VALUES (?, ?, ?, ?, ?)");
+            if (!$st) {
+                $err = $tr['err_db'];
+            } else {
+                $st->bind_param("issss", $halaqa_id, $full_name_en, $full_name_ur, $gender, $status);
+                if ($st->execute()) {
+                    $msg = $tr['student_added'];
+                    $_POST = [];
+                } else {
+                    $err = $tr['err_db'];
+                }
+                $st->close();
+            }
+        }
+    }
+
+    // REMOVE STUDENT (soft)
+    if ($action === 'remove_student') {
+        $student_id = (int)($_POST['student_id'] ?? 0);
+        $removed_type = $_POST['removed_type'] ?? 'left';
+        $removed_reason = trim($_POST['removed_reason'] ?? '');
+
+        if (!in_array($removed_type, ['left','removed','changed_halaqa'], true)) {
+            $removed_type = 'left';
         }
 
-        // Enforce no-mix classes: gender comes from halaqa
-        $gender = $halaqaGender; // boy/girl
-        $status = 'active';
-
-        $st = $conn->prepare("INSERT INTO students (halaqa_id, full_name_en, full_name_ur, gender, status) VALUES (?, ?, ?, ?, ?)");
-        if (!$st) {
-            $err = $tr['err_db'];
-        } else {
-            $st->bind_param("issss", $halaqa_id, $full_name_en, $full_name_ur, $gender, $status);
-            if ($st->execute()) {
-                $msg = $tr['student_added'];
-                $_POST = [];
+        if ($student_id > 0 && student_belongs_to_halaqa($conn, $student_id, $halaqa_id)) {
+            $st = $conn->prepare("
+                UPDATE students
+                SET status='inactive',
+                    removed_type=?,
+                    removed_reason=?,
+                    removed_at=NOW()
+                WHERE id=? AND halaqa_id=?
+                LIMIT 1
+            ");
+            if ($st) {
+                $st->bind_param("ssii", $removed_type, $removed_reason, $student_id, $halaqa_id);
+                if ($st->execute()) $msg = $tr['student_removed'];
+                else $err = $tr['err_db'];
+                $st->close();
             } else {
                 $err = $tr['err_db'];
             }
-            $st->close();
+        } else {
+            $err = $tr['err_db'];
+        }
+    }
+
+    // RESTORE STUDENT
+    if ($action === 'restore_student') {
+        $student_id = (int)($_POST['student_id'] ?? 0);
+        if ($student_id > 0 && student_belongs_to_halaqa($conn, $student_id, $halaqa_id)) {
+            $st = $conn->prepare("
+                UPDATE students
+                SET status='active',
+                    removed_type=NULL,
+                    removed_reason=NULL,
+                    removed_at=NULL
+                WHERE id=? AND halaqa_id=?
+                LIMIT 1
+            ");
+            if ($st) {
+                $st->bind_param("ii", $student_id, $halaqa_id);
+                if ($st->execute()) $msg = $tr['student_restored'];
+                else $err = $tr['err_db'];
+                $st->close();
+            } else {
+                $err = $tr['err_db'];
+            }
+        } else {
+            $err = $tr['err_db'];
+        }
+    }
+
+    // DELETE STUDENT (hard)
+    if ($action === 'delete_student') {
+        $student_id = (int)($_POST['student_id'] ?? 0);
+        if ($student_id > 0 && student_belongs_to_halaqa($conn, $student_id, $halaqa_id)) {
+            $st = $conn->prepare("DELETE FROM students WHERE id=? AND halaqa_id=? LIMIT 1");
+            if ($st) {
+                $st->bind_param("ii", $student_id, $halaqa_id);
+                if ($st->execute()) $msg = $tr['student_deleted'];
+                else $err = $tr['err_db'];
+                $st->close();
+            } else {
+                $err = $tr['err_db'];
+            }
+        } else {
+            $err = $tr['err_db'];
         }
     }
 }
 
-// Fetch students for this halaqa
-$students = [];
-$st2 = $conn->prepare("SELECT id, full_name_en, full_name_ur, gender, status, created_at FROM students WHERE halaqa_id=? ORDER BY id DESC");
-$st2->bind_param("i", $halaqa_id);
-$st2->execute();
-$r2 = $st2->get_result();
-while ($row = $r2->fetch_assoc()) $students[] = $row;
-$st2->close();
+// Fetch active students
+$students_active = [];
+$stA = $conn->prepare("
+  SELECT id, full_name_en, full_name_ur, gender, status, created_at
+  FROM students
+  WHERE halaqa_id=? AND status='active'
+  ORDER BY id DESC
+");
+$stA->bind_param("i", $halaqa_id);
+$stA->execute();
+$rA = $stA->get_result();
+while ($row = $rA->fetch_assoc()) $students_active[] = $row;
+$stA->close();
+
+// Fetch removed students (inactive OR removed_at)
+$students_removed = [];
+$stR = $conn->prepare("
+  SELECT id, full_name_en, full_name_ur, gender, status, created_at, removed_type, removed_reason, removed_at
+  FROM students
+  WHERE halaqa_id=? AND (status='inactive' OR removed_at IS NOT NULL)
+  ORDER BY removed_at DESC, id DESC
+");
+$stR->bind_param("i", $halaqa_id);
+$stR->execute();
+$rR = $stR->get_result();
+while ($row = $rR->fetch_assoc()) $students_removed[] = $row;
+$stR->close();
 
 // Labels
 $halaqaName = $isRtl ? ($halaqa['name_ur'] ?: $halaqa['name_en']) : ($halaqa['name_en'] ?: $halaqa['name_ur']);
-$groupLabel = $isGirl ? $tr['girls'] : $tr['boys'];
+$groupLabel = $isGirlHalaqa ? $tr['girl'] : $tr['boy'];
 $sessionLabel = (($halaqa['session'] ?? '') === 'asr') ? $tr['asr'] : $tr['subah'];
 $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['inactive'];
+
+function removed_type_label($t, $tr) {
+    if ($t === 'removed') return $tr['type_removed'];
+    if ($t === 'changed_halaqa') return $tr['type_changed'];
+    return $tr['type_left'];
+}
 ?>
 <!doctype html>
 <html lang="<?php echo h($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
@@ -290,19 +393,18 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       --sidebar:#3b3b3b;
       --sidebar2:#2f2f2f;
 
-      /* requested colors */
-      --boy:#2f6fd6;      /* blue */
-      --girl:#d24e8a;     /* pink */
-      --subah:#ff8c00;    /* orange */
-      --asr:#6b3f1d;      /* brown */
+      /* requested */
+      --boy:#2f6fd6;     /* blue */
+      --girl:#d24e8a;    /* pink */
+      --subah:#ff8c00;   /* orange */
+      --asr:#6b3f1d;     /* brown */
     }
 
     *{box-sizing:border-box}
     body{ margin:0; background:var(--bg); color:var(--accent); }
-
     .layout{ min-height:100vh; display:grid; grid-template-columns: 280px 1fr; }
 
-    /* PC collapsible sidebar behavior (same as dashboard) */
+    /* PC collapse (dashboard style) */
     .layout.collapsed{ grid-template-columns: 90px 1fr; }
     .layout.collapsed .brand .name,
     .layout.collapsed .brand .sub,
@@ -316,14 +418,12 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       background:linear-gradient(180deg, var(--sidebar), var(--sidebar2));
       color:#fff; padding:16px; position:sticky; top:0; height:100vh; overflow:auto;
     }
-
     .brand{
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       padding:8px 8px 16px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:12px;
     }
     .brand .name{ font-weight:900; font-size:16px; letter-spacing:.4px; font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
     .brand .sub{ font-weight:700; font-size:12px; opacity:.85; font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
-
     .sideToggle{
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.08);
@@ -333,22 +433,18 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
     .sideToggle:hover{ background:rgba(255,255,255,.12); }
 
     .nav{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
-
     .nav a, .nav .navDisabled{
       color:#fff; padding:10px 12px; border-radius:12px; font-weight:800; font-size:13px;
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       border:1px solid rgba(255,255,255,.10);
       position:relative; padding-left:40px;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      text-decoration:none;
+      background:transparent;
     }
-    .nav a{ text-decoration:none; background:transparent; }
     .nav a:hover{ background:rgba(255,255,255,.08); }
     .nav a.active{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.18); }
-
-    .nav .navDisabled{
-      opacity:.45; background:transparent; cursor:not-allowed;
-    }
-
+    .nav .navDisabled{ opacity:.45; cursor:not-allowed; }
     html[dir="rtl"] .nav a, html[dir="rtl"] .nav .navDisabled{ padding-left:12px; padding-right:40px; }
 
     .sidebarBottom{
@@ -357,7 +453,6 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
     }
 
     .main{ padding:18px; }
-
     .topbar{
       display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;
     }
@@ -389,11 +484,11 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
     .cardBody{padding:14px;}
 
     label{display:block; margin:10px 0 6px; font-weight:800; font-size:14px;}
-    input{
+    input, select{
       width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px;
       outline:none; background:#fff; font-size:14px;
     }
-    input:focus{
+    input:focus, select:focus{
       border-color:rgba(62,132,106,.55);
       box-shadow:0 0 0 4px rgba(62,132,106,.12);
     }
@@ -422,13 +517,29 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       border:1px solid var(--border); font-weight:900; font-size:12px; background:#fff; white-space:nowrap;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-
-    /* Requested tag backgrounds + readable text */
     .tag.boy{ background: var(--boy); border-color: var(--boy); color:#fff; }
     .tag.girl{ background: var(--girl); border-color: var(--girl); color:#fff; }
     .tag.subah{ background: var(--subah); border-color: var(--subah); color:#fff; }
     .tag.asr{ background: var(--asr); border-color: var(--asr); color:#fff; }
     .tag.neutral{ background: rgba(0,0,0,.06); border-color: rgba(0,0,0,.12); color:#333; }
+
+    .btnRow{ display:flex; gap:8px; flex-wrap:wrap; }
+    .btnMini{
+      display:inline-block; padding:6px 10px; border-radius:10px;
+      border:1px solid var(--border); background:#fff; font-weight:900;
+      text-decoration:none; color:var(--accent);
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      white-space:nowrap; cursor:pointer;
+    }
+    .btnMini:hover{ background:rgba(62,132,106,.08); border-color:rgba(62,132,106,.25); }
+    .btnMini.danger{ border-color:#f2c7c7; color:#8a1f1f; }
+    .btnMini.danger:hover{ background:#fff3f3; }
+
+    .removeBox{
+      margin-top:8px; padding:10px; border:1px dashed var(--border); border-radius:12px; background:rgba(0,0,0,.02);
+      display:none;
+    }
+    .removeBox.show{ display:block; }
 
     /* Mobile sidebar */
     .menuBtn{
@@ -436,7 +547,6 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       padding:10px 12px; border-radius:12px; font-weight:900; font-size:18px; cursor:pointer; line-height:1;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-
     @media (max-width: 980px){
       .layout{grid-template-columns: 1fr;}
       .main{padding:16px;}
@@ -470,14 +580,11 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
       </div>
 
       <nav class="nav">
-        <a class="active" href="halaqa_view.php?id=<?php echo (int)$halaqa_id; ?>">
-          <span class="txt"><?php echo h($tr['page']); ?></span>
-        </a>
+        <a class="active" href="halaqa_view.php?id=<?php echo (int)$halaqa_id; ?>"><span class="txt"><?php echo h($tr['page']); ?></span></a>
         <a href="dashboard_admin.php"><span class="txt"><?php echo h($tr['nav_dashboard']); ?></span></a>
         <a href="halaqaat_admin.php"><span class="txt"><?php echo h($tr['nav_halqaat']); ?></span></a>
         <a href="students_admin.php"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
 
-        <!-- Disabled (no href placeholders) -->
         <div class="navDisabled"><span class="txt">Ustaaz</span></div>
         <div class="navDisabled"><span class="txt">Exams</span></div>
         <div class="navDisabled"><span class="txt">Reports</span></div>
@@ -512,16 +619,15 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
         <section class="card">
           <div class="cardHeader"><?php echo h($tr['halaqa']); ?></div>
           <div class="cardBody">
+
             <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-              <span class="tag <?php echo $isGirl ? 'girl' : 'boy'; ?>"><?php echo h($groupLabel); ?></span>
+              <span class="tag <?php echo $isGirlHalaqa ? 'girl' : 'boy'; ?>"><?php echo h($groupLabel); ?></span>
               <span class="tag <?php echo (($halaqa['session'] ?? '') === 'asr') ? 'asr' : 'subah'; ?>"><?php echo h($sessionLabel); ?></span>
               <span class="tag neutral"><?php echo h($statusLabel); ?></span>
-              <span class="tag neutral"><?php echo h($tr['students']); ?>: <?php echo (int)count($students); ?></span>
+              <span class="tag neutral"><?php echo h($tr['students']); ?>: <?php echo (int)count($students_active); ?></span>
             </div>
 
-            <div style="margin-top:12px; font-weight:900;">
-              <?php echo h($tr['add_student']); ?>
-            </div>
+            <div style="margin-top:12px; font-weight:900;"><?php echo h($tr['add_student']); ?></div>
 
             <?php if ($msg): ?><div class="msg"><?php echo h($msg); ?></div><?php endif; ?>
             <?php if ($err): ?><div class="err"><?php echo h($err); ?></div><?php endif; ?>
@@ -529,16 +635,11 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
             <form method="post" autocomplete="off">
               <input type="hidden" name="action" value="add_student">
 
-              <!-- Urdu/Arabic only input -->
               <label><?php echo h($tr['full_name_ur']); ?></label>
               <input name="full_name_ur" value="<?php echo h($_POST['full_name_ur'] ?? ''); ?>" required>
 
-              <!-- No English input: generated by API -->
-              <input type="hidden" name="full_name_en" value="">
-
-              <!-- Gender enforced from halaqa -->
               <div style="margin-top:10px;">
-                <span class="tag <?php echo $isGirl ? 'girl' : 'boy'; ?>">
+                <span class="tag <?php echo $isGirlHalaqa ? 'girl' : 'boy'; ?>">
                   <?php echo h($tr['group']); ?>: <?php echo h($groupLabel); ?>
                 </span>
               </div>
@@ -548,7 +649,7 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
           </div>
         </section>
 
-        <!-- Students list -->
+        <!-- Active Students list -->
         <section class="card">
           <div class="cardHeader"><?php echo h($tr['students']); ?></div>
           <div class="cardBody" style="overflow:auto;">
@@ -560,13 +661,14 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
                   <th><?php echo h($tr['tbl_gender']); ?></th>
                   <th><?php echo h($tr['tbl_status']); ?></th>
                   <th><?php echo h($tr['tbl_created']); ?></th>
+                  <th><?php echo h($tr['tbl_actions']); ?></th>
                 </tr>
               </thead>
               <tbody>
-              <?php if (empty($students)): ?>
-                <tr><td colspan="5" style="color:#777; padding:14px;"><?php echo h($tr['no_students']); ?></td></tr>
+              <?php if (empty($students_active)): ?>
+                <tr><td colspan="6" style="color:#777; padding:14px;"><?php echo h($tr['no_students']); ?></td></tr>
               <?php else: ?>
-                <?php foreach ($students as $s): ?>
+                <?php foreach ($students_active as $s): ?>
                   <?php
                     $sid = (int)$s['id'];
                     $sg = strtolower((string)($s['gender'] ?? ''));
@@ -579,11 +681,46 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
                     <td><?php echo h($sName); ?></td>
                     <td>
                       <span class="tag <?php echo $isGirlStudent ? 'girl' : 'boy'; ?>">
-                        <?php echo h($isGirlStudent ? $tr['girls'] : $tr['boys']); ?>
+                        <?php echo h($isGirlStudent ? $tr['girl'] : $tr['boy']); ?>
                       </span>
                     </td>
                     <td><span class="tag neutral"><?php echo h($sStatus); ?></span></td>
                     <td style="white-space:nowrap;"><?php echo h($s['created_at'] ?? ''); ?></td>
+
+                    <td style="min-width:220px;">
+                      <div class="btnRow">
+                        <button class="btnMini" type="button" onclick="toggleRemoveBox(<?php echo $sid; ?>)"><?php echo h($tr['remove']); ?></button>
+
+                        <form method="post" style="display:inline;" onsubmit="return confirm('<?php echo h($tr['delete_confirm']); ?>');">
+                          <input type="hidden" name="action" value="delete_student">
+                          <input type="hidden" name="student_id" value="<?php echo $sid; ?>">
+                          <button class="btnMini danger" type="submit"><?php echo h($tr['delete']); ?></button>
+                        </form>
+                      </div>
+
+                      <!-- Remove form (soft) -->
+                      <div class="removeBox" id="removeBox-<?php echo $sid; ?>">
+                        <form method="post" onsubmit="return confirm('<?php echo h($tr['remove_confirm']); ?>');">
+                          <input type="hidden" name="action" value="remove_student">
+                          <input type="hidden" name="student_id" value="<?php echo $sid; ?>">
+
+                          <label style="margin:8px 0 6px;"><?php echo h($tr['removed_type']); ?></label>
+                          <select name="removed_type">
+                            <option value="left"><?php echo h($tr['type_left']); ?></option>
+                            <option value="removed"><?php echo h($tr['type_removed']); ?></option>
+                            <option value="changed_halaqa"><?php echo h($tr['type_changed']); ?></option>
+                          </select>
+
+                          <label style="margin:8px 0 6px;"><?php echo h($tr['removed_reason']); ?></label>
+                          <input name="removed_reason" placeholder="<?php echo h($tr['removed_reason']); ?>">
+
+                          <div style="margin-top:10px;">
+                            <button class="btnMini" type="submit"><?php echo h($tr['remove']); ?></button>
+                            <button class="btnMini" type="button" onclick="toggleRemoveBox(<?php echo $sid; ?>)"><?php echo $lang==='ur' ? 'بند کریں' : 'Close'; ?></button>
+                          </div>
+                        </form>
+                      </div>
+                    </td>
                   </tr>
                 <?php endforeach; ?>
               <?php endif; ?>
@@ -591,14 +728,61 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
             </table>
           </div>
         </section>
+
+        <!-- Removed Students -->
+        <section class="card" style="grid-column:1 / -1;">
+          <div class="cardHeader"><?php echo h($tr['removed_students']); ?></div>
+          <div class="cardBody" style="overflow:auto;">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th><?php echo h($tr['tbl_name']); ?></th>
+                  <th><?php echo h($tr['removed_type']); ?></th>
+                  <th><?php echo h($tr['removed_reason']); ?></th>
+                  <th><?php echo h($tr['removed_at']); ?></th>
+                  <th><?php echo h($tr['tbl_actions']); ?></th>
+                </tr>
+              </thead>
+              <tbody>
+              <?php if (empty($students_removed)): ?>
+                <tr><td colspan="6" style="color:#777; padding:14px;"><?php echo $lang==='ur' ? 'ابھی تک کوئی ریکارڈ نہیں' : 'No records yet'; ?></td></tr>
+              <?php else: ?>
+                <?php foreach ($students_removed as $s): ?>
+                  <?php
+                    $sid = (int)$s['id'];
+                    $sName = $isRtl ? ($s['full_name_ur'] ?: $s['full_name_en']) : ($s['full_name_en'] ?: $s['full_name_ur']);
+                    $rt = (string)($s['removed_type'] ?? 'left');
+                    $rr = (string)($s['removed_reason'] ?? '');
+                    $ra = (string)($s['removed_at'] ?? '');
+                  ?>
+                  <tr>
+                    <td><?php echo $sid; ?></td>
+                    <td><?php echo h($sName); ?></td>
+                    <td><span class="tag neutral"><?php echo h(removed_type_label($rt, $tr)); ?></span></td>
+                    <td><?php echo h($rr); ?></td>
+                    <td style="white-space:nowrap;"><?php echo h($ra); ?></td>
+                    <td>
+                      <form method="post" style="display:inline;">
+                        <input type="hidden" name="action" value="restore_student">
+                        <input type="hidden" name="student_id" value="<?php echo $sid; ?>">
+                        <button class="btnMini" type="submit"><?php echo h($tr['restore']); ?></button>
+                      </form>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
       </div>
     </main>
   </div>
 
   <script>
-    function isMobile() {
-      return window.innerWidth <= 980;
-    }
+    function isMobile() { return window.innerWidth <= 980; }
 
     function toggleSidebar(forceOpen) {
       var sb = document.getElementById('sidebar');
@@ -608,22 +792,15 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
 
       if (isMobile()) {
         var open = typeof forceOpen === 'boolean' ? forceOpen : !sb.classList.contains('open');
-        if (open) {
-          sb.classList.add('open');
-          ov.classList.add('show');
-        } else {
-          sb.classList.remove('open');
-          ov.classList.remove('show');
-        }
+        if (open) { sb.classList.add('open'); ov.classList.add('show'); }
+        else { sb.classList.remove('open'); ov.classList.remove('show'); }
       } else {
-        // PC: collapse/expand sidebar like dashboard
         layout.classList.toggle('collapsed');
         sb.classList.remove('open');
         ov.classList.remove('show');
       }
     }
 
-    // On resize: reset mobile overlay + remove collapsed on mobile
     window.addEventListener('resize', function () {
       var sb = document.getElementById('sidebar');
       var ov = document.getElementById('overlay');
@@ -637,6 +814,12 @@ $statusLabel = ((int)($halaqa['is_active'] ?? 0) === 1) ? $tr['active'] : $tr['i
         layout.classList.remove('collapsed');
       }
     });
+
+    function toggleRemoveBox(id){
+      var el = document.getElementById('removeBox-' + id);
+      if (!el) return;
+      el.classList.toggle('show');
+    }
   </script>
 </body>
 </html>

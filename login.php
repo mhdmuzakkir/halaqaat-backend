@@ -15,7 +15,7 @@ $lang = $_SESSION['lang'] ?? 'ur';
 $T = [
     'ur' => [
         'title' => 'لاگ اِن',
-'app' => 'کہف حلقات',
+        'app' => 'کہف حلقات',
         'username' => 'یوزرنیم',
         'password' => 'پاس ورڈ',
         'login' => 'لاگ اِن کریں',
@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?php echo htmlspecialchars($tr['title']); ?> — <?php echo htmlspecialchars(defined('APP_NAME') ? APP_NAME : $tr['app']); ?></title>
+  <title><?php echo htmlspecialchars($tr['title']); ?> — <?php echo htmlspecialchars($tr['app']); ?></title>
   <style>
     :root{
       --brown-gold:#b18f6e;

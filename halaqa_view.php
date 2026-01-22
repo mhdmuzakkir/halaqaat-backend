@@ -688,8 +688,12 @@ function removed_type_label($t, $tr) {
                     <td style="white-space:nowrap;"><?php echo h($s['created_at'] ?? ''); ?></td>
 
                     <td style="min-width:220px;">
-                      <div class="btnRow">
-                        <button class="btnMini" type="button" onclick="toggleRemoveBox(<?php echo $sid; ?>)"><?php echo h($tr['remove']); ?></button>
+                      
+                    <div class="btnRow">
+                    <a class="btnMini" href="student_info.php?id=<?php echo $sid; ?>" target="_blank" rel="noopener">
+  <?php echo ($lang==='ur' ? 'معلومات' : 'Info'); ?>
+</a>    
+                    <button class="btnMini" type="button" onclick="toggleRemoveBox(<?php echo $sid; ?>)"><?php echo h($tr['remove']); ?></button>
 
                         <form method="post" style="display:inline;" onsubmit="return confirm('<?php echo h($tr['delete_confirm']); ?>');">
                           <input type="hidden" name="action" value="delete_student">

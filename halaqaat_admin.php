@@ -1,5 +1,15 @@
 <?php
 // halaqaat_admin.php  (FULL - SAME sidebar as dashboard_admin.php + mobile toggle works + Urdu font forced + dropdown fixed)
+// CHANGES:
+// ✅ Removed English name input + removed English name display everywhere
+// ✅ Urdu mode shows ONLY Urdu name (no English at all)
+// ✅ Added "State" (running/paused/stopped) select on create
+// ✅ Added "Stopped" column in list (Yes/No based on state)
+// ✅ Backward-compatible: if halaqaat.state column doesn't exist, we fall back to is_active only (and hide state features)
+
+// IMPORTANT DB CHANGE (run once if not added):
+// ALTER TABLE halaqaat ADD COLUMN state ENUM('running','paused','stopped') NOT NULL DEFAULT 'running' AFTER session;
+
 require_once __DIR__ . '/db.php';
 
 session_name(defined('SESSION_NAME') ? SESSION_NAME : 'kahaf_session');
@@ -43,13 +53,18 @@ $T = [
     'add_new' => 'نئی حلقہ شامل کریں',
     'list' => 'تمام حلقات',
     'name_ur' => 'حلقہ نام (اردو)',
-    'name_en' => 'حلقہ نام (English)',
     'gender' => 'گروپ',
     'boys' => 'طلباء',
     'girls' => 'طالبات',
     'session' => 'سیشن',
     'subah' => 'صبح',
     'asr' => 'عصر',
+
+    'state' => 'حالت',
+    'running' => 'چل رہی ہے',
+    'paused' => 'وقفہ (Pause)',
+    'stopped' => 'بند (Stopped)',
+
     'save' => 'محفوظ کریں',
     'status' => 'اسٹیٹس',
     'active' => 'فعال',
@@ -61,6 +76,9 @@ $T = [
 
     'students_count' => 'طلبہ',
     'open' => 'کھولیں',
+    'stopped_col' => 'بند؟',
+    'yes' => 'ہاں',
+    'no' => 'نہیں',
   ],
   'en' => [
     'app' => 'Kahf Halaqat',
@@ -82,13 +100,18 @@ $T = [
     'add_new' => 'Add New Halaqa',
     'list' => 'All Halaqaat',
     'name_ur' => 'Halaqa Name (Urdu)',
-    'name_en' => 'Halaqa Name (English)',
     'gender' => 'Group',
     'boys' => 'Boys',
     'girls' => 'Girls',
     'session' => 'Session',
     'subah' => 'Subah',
     'asr' => 'Asr',
+
+    'state' => 'State',
+    'running' => 'Running',
+    'paused' => 'Paused',
+    'stopped' => 'Stopped',
+
     'save' => 'Save',
     'status' => 'Status',
     'active' => 'Active',
@@ -100,6 +123,9 @@ $T = [
 
     'students_count' => 'Students',
     'open' => 'Open',
+    'stopped_col' => 'Stopped?',
+    'yes' => 'Yes',
+    'no' => 'No',
   ],
 ];
 
@@ -107,7 +133,8 @@ $tr = $T[$lang];
 $msg = '';
 $err = '';
 
-// Normalize halaqa gender to final rule: boy/girl
+// Helpers
+function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 function normalize_halaqa_gender($g) {
     $g = strtolower(trim((string)$g));
     if ($g === 'girls' || $g === 'girl') return 'girl';
@@ -117,13 +144,27 @@ function is_girl_group($g) {
     $g = strtolower(trim((string)$g));
     return ($g === 'girl' || $g === 'girls');
 }
+function normalize_state($s) {
+    $s = strtolower(trim((string)$s));
+    if (in_array($s, ['running','paused','stopped'], true)) return $s;
+    return 'running';
+}
+function column_exists($conn, $table, $col) {
+    $table = $conn->real_escape_string($table);
+    $col   = $conn->real_escape_string($col);
+    $sql = "SHOW COLUMNS FROM `$table` LIKE '$col'";
+    $res = $conn->query($sql);
+    if (!$res) return false;
+    $ok = ($res->num_rows > 0);
+    $res->free();
+    return $ok;
+}
 
-function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
+$hasState = column_exists($conn, 'halaqaat', 'state');
 
 // Handle create
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ur = trim($_POST['name_ur'] ?? '');
-    $name_en = trim($_POST['name_en'] ?? '');
     $gender_in  = $_POST['gender'] ?? 'boy';
     $session = $_POST['session'] ?? 'subah';
     $is_active = !empty($_POST['is_active']) ? 1 : 0;
@@ -131,36 +172,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $gender  = normalize_halaqa_gender($gender_in);
     if (!in_array($session, ['subah','asr'], true)) $session = 'subah';
 
+    $state = 'running';
+    if ($hasState) {
+        $state = normalize_state($_POST['state'] ?? 'running');
+        // Optional: if stopped, force inactive
+        if ($state === 'stopped') $is_active = 0;
+    }
+
     if ($name_ur === '') {
         $err = $tr['err_required'];
     } else {
-        $stmt = $conn->prepare("INSERT INTO halaqaat (name_ur, name_en, gender, session, is_active) VALUES (?, ?, ?, ?, ?)");
-        if (!$stmt) {
-            $err = $tr['err_db'];
-        } else {
-            $stmt->bind_param("ssssi", $name_ur, $name_en, $gender, $session, $is_active);
-            if ($stmt->execute()) {
-                $msg = $tr['created'];
-                $_POST = [];
-            } else {
+        if ($hasState) {
+            $stmt = $conn->prepare("INSERT INTO halaqaat (name_ur, gender, session, state, is_active) VALUES (?, ?, ?, ?, ?)");
+            if (!$stmt) {
                 $err = $tr['err_db'];
+            } else {
+                $stmt->bind_param("ssssi", $name_ur, $gender, $session, $state, $is_active);
+                if ($stmt->execute()) {
+                    $msg = $tr['created'];
+                    $_POST = [];
+                } else {
+                    $err = $tr['err_db'];
+                }
+                $stmt->close();
             }
-            $stmt->close();
+        } else {
+            $stmt = $conn->prepare("INSERT INTO halaqaat (name_ur, gender, session, is_active) VALUES (?, ?, ?, ?)");
+            if (!$stmt) {
+                $err = $tr['err_db'];
+            } else {
+                $stmt->bind_param("sssi", $name_ur, $gender, $session, $is_active);
+                if ($stmt->execute()) {
+                    $msg = $tr['created'];
+                    $_POST = [];
+                } else {
+                    $err = $tr['err_db'];
+                }
+                $stmt->close();
+            }
         }
     }
 }
 
-// Fetch list + students count (single query)
+// Fetch list + students count
 $halaqaat = [];
-$sql = "
-  SELECT
-    h.id, h.name_ur, h.name_en, h.gender, h.session, h.is_active, h.created_at,
-    COUNT(s.id) AS students_count
-  FROM halaqaat h
-  LEFT JOIN students s ON s.halaqa_id = h.id
-  GROUP BY h.id, h.name_ur, h.name_en, h.gender, h.session, h.is_active, h.created_at
-  ORDER BY h.id DESC
-";
+if ($hasState) {
+    $sql = "
+      SELECT
+        h.id, h.name_ur, h.gender, h.session, h.state, h.is_active, h.created_at,
+        COUNT(s.id) AS students_count
+      FROM halaqaat h
+      LEFT JOIN students s ON s.halaqa_id = h.id
+      GROUP BY h.id, h.name_ur, h.gender, h.session, h.state, h.is_active, h.created_at
+      ORDER BY h.id DESC
+    ";
+} else {
+    $sql = "
+      SELECT
+        h.id, h.name_ur, h.gender, h.session, h.is_active, h.created_at,
+        COUNT(s.id) AS students_count
+      FROM halaqaat h
+      LEFT JOIN students s ON s.halaqa_id = h.id
+      GROUP BY h.id, h.name_ur, h.gender, h.session, h.is_active, h.created_at
+      ORDER BY h.id DESC
+    ";
+}
 $res = $conn->query($sql);
 if ($res) {
     while ($row = $res->fetch_assoc()) $halaqaat[] = $row;
@@ -172,21 +248,17 @@ if ($res) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
-
   <title><?php echo h($tr['page']); ?> — <?php echo h($tr['app']); ?></title>
 
   <style>
-    /* ===== English mode: Montserrat everywhere ===== */
+    /* ===== English mode ===== */
     html[lang="en"] body,
     html[lang="en"] .sidebar,
     html[lang="en"] .main,
     html[lang="en"] .pill,
     html[lang="en"] .nav a,
     html[lang="en"] .cardHeader,
-    html[lang="en"] .stat .label,
-    html[lang="en"] .stat .val,
     html[lang="en"] input,
     html[lang="en"] select,
     html[lang="en"] option,
@@ -197,7 +269,7 @@ if ($res) {
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
     }
 
-    /* ===== Urdu mode: Noto Nastaliq everywhere ===== */
+    /* ===== Urdu mode ===== */
     html[lang="ur"] body,
     html[lang="ur"] .sidebar,
     html[lang="ur"] .main,
@@ -219,7 +291,6 @@ if ($res) {
       --secondary:#b18f6e;
       --accent:#444444;
       --bg:#f6f2ee;
-      --card:#ffffff;
       --border:#e7ddd4;
 
       --sidebar:#3b3b3b;
@@ -229,6 +300,10 @@ if ($res) {
       --girl:#d24e8a;
       --subah:#ff8c00;
       --asr:#784614;
+
+      --stopped:#8a1f1f;
+      --paused:#7a5a00;
+      --running:#1b6b52;
     }
 
     *{box-sizing:border-box}
@@ -244,8 +319,14 @@ if ($res) {
       display:flex; align-items:center; justify-content:space-between; gap:10px;
       padding:8px 8px 16px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:12px;
     }
-    .brand .name{ font-weight:900; font-size:16px; letter-spacing:.4px; font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
-    .brand .sub{ font-weight:700; font-size:12px; opacity:.85; font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
+    .brand .name{
+      font-weight:900; font-size:16px; letter-spacing:.4px;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    }
+    .brand .sub{
+      font-weight:700; font-size:12px; opacity:.85;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    }
 
     .sideToggle{
       border:1px solid rgba(255,255,255,.25);
@@ -261,8 +342,6 @@ if ($res) {
     .layout.collapsed .nav a span.txt,
     .layout.collapsed .sidebarBottom{ display:none; }
     .layout.collapsed .nav a{ justify-content:center; padding:12px; }
-    .layout.collapsed .nav a .ico{ width:22px; display:inline-flex; justify-content:center; align-items:center; }
-    .nav a{ gap:10px; }
 
     .nav{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
     .nav a{
@@ -273,7 +352,6 @@ if ($res) {
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
     html[dir="rtl"] .nav a{ padding-left:12px; padding-right:40px; }
-
     .nav a.active{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.18); }
     .nav a:hover{ background:rgba(255,255,255,.08); }
 
@@ -393,38 +471,19 @@ if ($res) {
     th{font-weight:900; color:#555; background:rgba(177,143,110,.10);}
 
     .tag{
-      display:inline-block;
-      padding:4px 10px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      font-weight:900;
-      font-size:12px;
-      background:#fff;
-      white-space:nowrap;
+      display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--border);
+      font-weight:900; font-size:12px; background:#fff; white-space:nowrap;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
 
-    /* ===== Requested Tag Colors ===== */
-    .tag.boy{
-      background: rgba(47,111,214,.18);
-      border-color: rgba(47,111,214,.55);
-      color: #1b3f86;
-    }
-    .tag.girl{
-      background: rgba(210,78,138,.18);
-      border-color: rgba(210,78,138,.55);
-      color: #7a1f4a;
-    }
-    .tag.subah{
-      background: rgba(255,140,0,.22);
-      border-color: rgba(255,140,0,.60);
-      color: #6a3a00;
-    }
-    .tag.asr{
-      background: rgba(120,70,20,.22);
-      border-color: rgba(120,70,20,.60);
-      color: #4a2a0d;
-    }
+    .tag.boy{ background: rgba(47,111,214,.18); border-color: rgba(47,111,214,.55); color:#1b3f86; }
+    .tag.girl{ background: rgba(210,78,138,.18); border-color: rgba(210,78,138,.55); color:#7a1f4a; }
+    .tag.subah{ background: rgba(255,140,0,.22); border-color: rgba(255,140,0,.60); color:#6a3a00; }
+    .tag.asr{ background: rgba(120,70,20,.22); border-color: rgba(120,70,20,.60); color:#4a2a0d; }
+
+    .tag.running{ background: rgba(27,107,82,.15); border-color: rgba(27,107,82,.45); color: var(--running); }
+    .tag.paused{ background: rgba(122,90,0,.14); border-color: rgba(122,90,0,.45); color: var(--paused); }
+    .tag.stopped{ background: rgba(138,31,31,.14); border-color: rgba(138,31,31,.45); color: var(--stopped); }
 
     .checkRow{display:flex; align-items:center; gap:10px; margin-top:10px;}
     .checkRow input{width:auto; transform:scale(1.1);}
@@ -453,10 +512,8 @@ if ($res) {
         position:fixed; z-index:50; top:0; bottom:0; width:280px; overflow:auto;
         transition:transform .2s ease;
       }
-
       html[dir="ltr"] .sidebar{ left:0; transform:translateX(-110%); }
       html[dir="rtl"] .sidebar{ right:0; transform:translateX(110%); }
-
       .sidebar.open{ transform:translateX(0) !important; }
 
       .overlay{
@@ -523,9 +580,6 @@ if ($res) {
               <label><?php echo h($tr['name_ur']); ?></label>
               <input name="name_ur" value="<?php echo h($_POST['name_ur'] ?? ''); ?>" required>
 
-              <label><?php echo h($tr['name_en']); ?></label>
-              <input name="name_en" value="<?php echo h($_POST['name_en'] ?? ''); ?>">
-
               <div class="row2">
                 <div>
                   <label><?php echo h($tr['gender']); ?></label>
@@ -544,6 +598,16 @@ if ($res) {
                   </select>
                 </div>
               </div>
+
+              <?php if ($hasState): ?>
+              <label><?php echo h($tr['state']); ?></label>
+              <?php $stSel = normalize_state($_POST['state'] ?? 'running'); ?>
+              <select name="state">
+                <option value="running" <?php echo ($stSel==='running')?'selected':''; ?>><?php echo h($tr['running']); ?></option>
+                <option value="paused"  <?php echo ($stSel==='paused')?'selected':'';  ?>><?php echo h($tr['paused']); ?></option>
+                <option value="stopped" <?php echo ($stSel==='stopped')?'selected':''; ?>><?php echo h($tr['stopped']); ?></option>
+              </select>
+              <?php endif; ?>
 
               <div class="checkRow">
                 <input id="is_active" type="checkbox" name="is_active" value="1" <?php echo !empty($_POST['is_active']) ? 'checked' : ''; ?>>
@@ -565,31 +629,31 @@ if ($res) {
                   <th><?php echo h($tr['name_ur']); ?></th>
                   <th><?php echo h($tr['gender']); ?></th>
                   <th><?php echo h($tr['session']); ?></th>
+                  <?php if ($hasState): ?><th><?php echo h($tr['state']); ?></th><?php endif; ?>
                   <th><?php echo h($tr['students_count']); ?></th>
                   <th><?php echo h($tr['open']); ?></th>
+                  <th><?php echo h($tr['stopped_col']); ?></th>
                   <th><?php echo h($tr['status']); ?></th>
                 </tr>
               </thead>
               <tbody>
               <?php if (empty($halaqaat)): ?>
-                <tr><td colspan="7" style="color:#777; padding:14px;"><?php echo h($tr['no_data']); ?></td></tr>
+                <tr><td colspan="<?php echo $hasState ? '9' : '8'; ?>" style="color:#777; padding:14px;"><?php echo h($tr['no_data']); ?></td></tr>
               <?php else: ?>
                 <?php foreach ($halaqaat as $hrow): ?>
                   <?php
                     $hid = (int)$hrow['id'];
                     $isGirl = is_girl_group($hrow['gender'] ?? '');
                     $studentsCount = (int)($hrow['students_count'] ?? 0);
+                    $stateVal = $hasState ? normalize_state($hrow['state'] ?? 'running') : 'running';
+                    $isStopped = ($hasState && $stateVal === 'stopped');
                   ?>
                   <tr>
                     <td><?php echo $hid; ?></td>
-                    <td>
-                      <div style="font-weight:900;"><?php echo h($hrow['name_ur']); ?></div>
-                      <?php if (!empty($hrow['name_en'])): ?>
-                        <div style="font-size:12px; color:#666;"><?php echo h($hrow['name_en']); ?></div>
-                      <?php endif; ?>
-                    </td>
 
-                    <!-- CHANGED: gender tag colors -->
+                    <!-- ✅ Show only Urdu name ALWAYS (no English name anywhere) -->
+                    <td><div style="font-weight:900;"><?php echo h($hrow['name_ur']); ?></div></td>
+
                     <td>
                       <?php if ($isGirl): ?>
                         <span class="tag girl"><?php echo h($tr['girls']); ?></span>
@@ -598,7 +662,6 @@ if ($res) {
                       <?php endif; ?>
                     </td>
 
-                    <!-- CHANGED: session tag colors -->
                     <td>
                       <?php if (($hrow['session'] ?? '') === 'asr'): ?>
                         <span class="tag asr"><?php echo h($tr['asr']); ?></span>
@@ -607,12 +670,29 @@ if ($res) {
                       <?php endif; ?>
                     </td>
 
+                    <?php if ($hasState): ?>
+                    <td>
+                      <span class="tag <?php echo h($stateVal); ?>">
+                        <?php echo h($tr[$stateVal] ?? $stateVal); ?>
+                      </span>
+                    </td>
+                    <?php endif; ?>
+
                     <td><span class="tag"><?php echo $studentsCount; ?></span></td>
 
                     <td>
                       <a class="btnMini" href="halaqa_view.php?id=<?php echo $hid; ?>" target="_blank" rel="noopener">
                         <?php echo h($tr['open']); ?>
                       </a>
+                    </td>
+
+                    <!-- ✅ Stopped column -->
+                    <td>
+                      <?php if ($isStopped): ?>
+                        <span class="tag stopped"><?php echo h($tr['yes']); ?></span>
+                      <?php else: ?>
+                        <span class="tag"><?php echo h($tr['no']); ?></span>
+                      <?php endif; ?>
                     </td>
 
                     <td>

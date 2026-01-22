@@ -636,16 +636,24 @@ html[dir="rtl"] .nav a::before{
     }
 
     /* Mobile sidebar */
-    .menuBtn{
-      display:none;
-      border:1px solid var(--border);
-      background:#fff;
-      padding:10px 12px;
-      border-radius:12px;
-      font-weight:900;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-      cursor:pointer;
-    }
+  .menuBtn{
+  display:none;
+  background:transparent;
+  border:1px solid rgba(255,255,255,.6);
+  color:#ffffff;                 /* ✅ WHITE icon */
+  padding:10px 12px;
+  border-radius:12px;
+  font-weight:900;
+  font-size:18px;
+  cursor:pointer;
+  line-height:1;
+}
+.menuBtn:focus,
+.menuBtn:active{
+  outline:none;
+  box-shadow:none;
+}
+
 
    @media (max-width: 980px){
   .layout{grid-template-columns: 1fr;}

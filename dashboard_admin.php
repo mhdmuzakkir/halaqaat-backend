@@ -154,7 +154,16 @@ if (table_exists($conn, $tbl_students)) {
     $stats['girls'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('female','girl','girls')");
 }
 
-if (table_exists($conn, $tbl_users)
+if (table_exists($conn, $tbl_users)) {
+    $stats['ustaaz'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_users` WHERE role='ustaaz' AND is_active=1");
+}
+
+if (table_exists($conn, $tbl_exams)) {
+    // expects exams table to have exam_date DATE column
+    $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_exams` WHERE exam_date >= CURDATE()");
+} elseif (table_exists($conn, 'exam_sessions')) {
+    $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `exam_sessions` WHERE exam_date >= CURDATE()");
+}
 
 
 // Sample cards (we’ll replace with DB later)

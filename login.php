@@ -249,7 +249,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="card">
       <div class="header">
         <div class="brand">
-          <div class="app"><?php echo htmlspecialchars(defined('APP_NAME') ? APP_NAME : $tr['app']); ?></div>
+          <div class="app"><?php echo htmlspecialchars($tr['app']); ?></div></div>
           <div class="title"><?php echo htmlspecialchars($tr['title']); ?></div>
         </div>
         <div class="lang">

@@ -423,10 +423,12 @@ html[dir="rtl"] .nav a::before{
       font-size:13px;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-    .pill.active{
-      background:rgba(177,143,110,.18);
-      border-color:rgba(177,143,110,.55);
-    }
+.pill.active{
+  background: var(--secondary);   /* golden brown */
+  border-color: var(--secondary);
+  color: #ffffff;                /* white text */
+}
+
     .pill.logout{
       background:var(--primary);
       color:#fff;

@@ -638,7 +638,7 @@ html[dir="rtl"] .nav a::before{
     /* Mobile sidebar */
   .menuBtn{
   display:none;
-  background:transparent;
+  background:#3e846a;
   border:1px solid rgba(255,255,255,.6);
   color:#ffffff;                 /* ✅ WHITE icon */
   padding:10px 12px;

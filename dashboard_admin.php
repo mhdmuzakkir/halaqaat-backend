@@ -102,64 +102,14 @@ $tr = $T[$lang];
 
 $fullName = $_SESSION['full_name'] ?? 'Admin';
 
-// -------------------- DB helpers (safe on new/empty DB) --------------------
-function table_exists(mysqli $conn, string $table): bool {
-    $stmt = $conn->prepare("SHOW TABLES LIKE ?");
-    $stmt->bind_param("s", $table);
-    $stmt->execute();
-    $res = $stmt->get_result();
-    $ok = ($res && $res->num_rows > 0);
-    $stmt->close();
-    return $ok;
-}
-function scalar_int(mysqli $conn, string $sql): int {
-    $res = $conn->query($sql);
-    if (!$res) return 0;
-    $row = $res->fetch_row();
-    return (int)($row[0] ?? 0);
-}
-
-// -------------------- REAL STATS (adjust table names if yours differ) --------------------
-// Expected tables (recommended names):
-// - halqaat (halaqa records)
-// - students (student records with gender column)
-// - users (users with role column)
-// - exams (exam schedule table) OR exam_sessions (if you use that)
-
+// NOTE: For now these are placeholders.
+// Next step we will connect real DB counts (halaqaat, students, etc.)
 $stats = [
-    'halqaat' => 0,
-    'students' => 0,
-    'ustaaz' => 0,
-    'upcoming_exams' => 0,
-    'boys' => 0,
-    'girls' => 0,
+    'halqaat' => 22,
+    'students' => 294,
+    'ustaaz' => 24,
+    'upcoming_exams' => 2,
 ];
-
-if (table_exists($conn, 'halqaat')) {
-    $stats['halqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM halqaat");
-}
-
-if (table_exists($conn, 'students')) {
-    $stats['students'] = scalar_int($conn, "SELECT COUNT(*) FROM students");
-
-    // gender values we support: 'male'/'female' OR 'boys'/'girls'
-    $stats['boys']  = scalar_int($conn, "SELECT COUNT(*) FROM students WHERE LOWER(gender) IN ('male','boy','boys')");
-    $stats['girls'] = scalar_int($conn, "SELECT COUNT(*) FROM students WHERE LOWER(gender) IN ('female','girl','girls')");
-}
-
-if (table_exists($conn, 'users')) {
-    // ustaaz/ustadhah stored as role='ustaaz'
-    $stats['ustaaz'] = scalar_int($conn, "SELECT COUNT(*) FROM users WHERE role='ustaaz' AND is_active=1");
-}
-
-// Upcoming exams (we support either exams or exam_sessions table)
-if (table_exists($conn, 'exams')) {
-    // expects columns: exam_date (DATE) and is_active (optional)
-    $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM exams WHERE exam_date >= CURDATE()");
-} elseif (table_exists($conn, 'exam_sessions')) {
-    $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM exam_sessions WHERE exam_date >= CURDATE()");
-}
-
 
 // Sample cards (we’ll replace with DB later)
 $sampleHalqaat = [

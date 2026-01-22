@@ -1,13 +1,21 @@
 <?php
-$host = 'localhost'; // Hepsia MySQL
-$dbname = 'mdmunazir_linuxproguru'; // Create in Hepsia
-$user = 'mdmunazir_linuxproguru'; // Hepsia DB user
-$pass = 'Vikhara@548';
+// Database configuration
+define('DB_HOST', 'localhost');
+define('DB_USER', 'mdmunazir_linuxproguru');
+define('DB_PASS', 'Vikhara@548'); // Change this!
+define('DB_NAME', 'mdmunazir_linuxproguru');
 
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
-    die('DB Error: ' . $e->getMessage());  // Shows exact problem
+// Create connection
+$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+
+// Check connection
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
 }
+
+// Set charset
+$conn->set_charset("utf8");
+
+// Start session
+session_start();
 ?>

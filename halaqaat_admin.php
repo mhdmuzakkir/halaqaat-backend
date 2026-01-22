@@ -38,20 +38,17 @@ $T = [
     'gender' => 'گروپ',
     'boys' => 'طلباء',
     'girls' => 'طالبات',
-    'girls_only' => 'صرف طالبات',
-    'shuba' => 'شعبہ',
-    'hifz' => 'حفظ',
-    'nazirah' => 'ناظرہ',
-    'qaida' => 'قاعدہ',
-    'subah' => 'صبح کا وقت',
-    'asr' => 'عصر کا وقت',
+    'session' => 'سیشن',
+    'subah' => 'صبح',
+    'asr' => 'عصر',
     'save' => 'محفوظ کریں',
     'status' => 'اسٹیٹس',
     'active' => 'فعال',
     'inactive' => 'غیر فعال',
     'created' => 'نئی حلقہ شامل ہوگئی ✅',
-    'err_required' => 'اردو نام اور شعبہ لازمی ہیں۔',
+    'err_required' => 'اردو نام لازمی ہے۔',
     'err_db' => 'ڈیٹا محفوظ نہیں ہوا۔',
+    'no_data' => 'ابھی تک کوئی ڈیٹا نہیں',
   ],
   'en' => [
     'app' => 'Kahf Halaqat',
@@ -68,20 +65,17 @@ $T = [
     'gender' => 'Group',
     'boys' => 'Boys',
     'girls' => 'Girls',
-    'girls_only' => 'Girls only',
-    'shuba' => 'Shuba',
-    'hifz' => 'Hifz',
-    'nazirah' => 'Nazirah',
-    'qaida' => 'Qaida',
-    'subah' => 'Subah time',
-    'asr' => 'Asr time',
+    'session' => 'Session',
+    'subah' => 'Subah',
+    'asr' => 'Asr',
     'save' => 'Save',
     'status' => 'Status',
     'active' => 'Active',
     'inactive' => 'Inactive',
     'created' => 'Halaqa created ✅',
-    'err_required' => 'Urdu name and Shuba are required.',
+    'err_required' => 'Urdu name is required.',
     'err_db' => 'Could not save data.',
+    'no_data' => 'No data yet',
   ],
 ];
 
@@ -93,32 +87,28 @@ $err = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ur = trim($_POST['name_ur'] ?? '');
     $name_en = trim($_POST['name_en'] ?? '');
-    $gender = $_POST['gender'] ?? 'boys';
-    $girls_only = !empty($_POST['girls_only']) ? 1 : 0;
-    $shuba = $_POST['shuba'] ?? '';
-    $subah_time = trim($_POST['subah_time'] ?? '');
-    $asr_time = trim($_POST['asr_time'] ?? '');
+    $gender  = $_POST['gender'] ?? 'boys';
+    $session = $_POST['session'] ?? 'subah';
     $is_active = !empty($_POST['is_active']) ? 1 : 0;
 
-    if ($name_ur === '' || $shuba === '') {
+    // Enforce allowed values (safety)
+    if (!in_array($gender, ['boys', 'girls'], true)) $gender = 'boys';
+    if (!in_array($session, ['subah', 'asr'], true)) $session = 'subah';
+
+    if ($name_ur === '') {
         $err = $tr['err_required'];
     } else {
-        // Normalize: if girls_only checked, force gender girls
-        if ($girls_only === 1) $gender = 'girls';
-
-        $sql = "INSERT INTO halaqaat
-                (name_ur, name_en, gender, girls_only, shuba, subah_time, asr_time, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO halaqaat (name_ur, name_en, gender, session, is_active)
+                VALUES (?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
 
         if (!$stmt) {
             $err = $tr['err_db'];
         } else {
-            $stmt->bind_param("sssisssi", $name_ur, $name_en, $gender, $girls_only, $shuba, $subah_time, $asr_time, $is_active);
+            $stmt->bind_param("ssssi", $name_ur, $name_en, $gender, $session, $is_active);
             if ($stmt->execute()) {
                 $msg = $tr['created'];
-                // clear form values after success
-                $_POST = [];
+                $_POST = []; // clear form values after success
             } else {
                 $err = $tr['err_db'];
             }
@@ -129,7 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch list
 $halaqaat = [];
-$res = $conn->query("SELECT id, name_ur, name_en, gender, girls_only, shuba, subah_time, asr_time, is_active, created_at
+$res = $conn->query("SELECT id, name_ur, name_en, gender, session, is_active, created_at
                      FROM halaqaat
                      ORDER BY id DESC");
 if ($res) {
@@ -315,6 +305,9 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
     }
     .tag.primary{background:rgba(62,132,106,.12); border-color:rgba(62,132,106,.35);}
     .tag.secondary{background:rgba(177,143,110,.14); border-color:rgba(177,143,110,.45);}
+
+    .checkRow{display:flex; align-items:center; gap:10px; margin-top:10px;}
+    .checkRow input{width:auto; transform:scale(1.1);}
   </style>
 </head>
 <body>
@@ -367,45 +360,23 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                 <div>
                   <label><?php echo h($tr['gender']); ?></label>
                   <select name="gender">
-                    <option value="boys" <?php echo (($_POST['gender'] ?? '')==='boys')?'selected':''; ?>><?php echo h($tr['boys']); ?></option>
+                    <option value="boys" <?php echo (($_POST['gender'] ?? 'boys')==='boys')?'selected':''; ?>><?php echo h($tr['boys']); ?></option>
                     <option value="girls" <?php echo (($_POST['gender'] ?? '')==='girls')?'selected':''; ?>><?php echo h($tr['girls']); ?></option>
                   </select>
                 </div>
+
                 <div>
-                  <label><?php echo h($tr['shuba']); ?></label>
-                  <select name="shuba" required>
-                    <option value="">--</option>
-                    <option value="hifz" <?php echo (($_POST['shuba'] ?? '')==='hifz')?'selected':''; ?>><?php echo h($tr['hifz']); ?></option>
-                    <option value="nazirah" <?php echo (($_POST['shuba'] ?? '')==='nazirah')?'selected':''; ?>><?php echo h($tr['nazirah']); ?></option>
-                    <option value="qaida" <?php echo (($_POST['shuba'] ?? '')==='qaida')?'selected':''; ?>><?php echo h($tr['qaida']); ?></option>
+                  <label><?php echo h($tr['session']); ?></label>
+                  <select name="session">
+                    <option value="subah" <?php echo (($_POST['session'] ?? 'subah')==='subah')?'selected':''; ?>><?php echo h($tr['subah']); ?></option>
+                    <option value="asr" <?php echo (($_POST['session'] ?? '')==='asr')?'selected':''; ?>><?php echo h($tr['asr']); ?></option>
                   </select>
                 </div>
               </div>
 
-              <div class="row2">
-                <div>
-                  <label><?php echo h($tr['subah']); ?></label>
-                  <input name="subah_time" placeholder="08:00" value="<?php echo h($_POST['subah_time'] ?? ''); ?>">
-                </div>
-                <div>
-                  <label><?php echo h($tr['asr']); ?></label>
-                  <input name="asr_time" placeholder="16:30" value="<?php echo h($_POST['asr_time'] ?? ''); ?>">
-                </div>
-              </div>
-
-              <div class="row2">
-                <div>
-                  <label>
-                    <input type="checkbox" name="girls_only" value="1" <?php echo !empty($_POST['girls_only'])?'checked':''; ?>>
-                    <?php echo h($tr['girls_only']); ?>
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    <input type="checkbox" name="is_active" value="1" <?php echo empty($_POST) || !empty($_POST['is_active'])?'checked':''; ?>>
-                    <?php echo h($tr['active']); ?>
-                  </label>
-                </div>
+              <div class="checkRow">
+                <input id="is_active" type="checkbox" name="is_active" value="1" <?php echo !empty($_POST['is_active']) ? 'checked' : ''; ?>>
+                <label for="is_active" style="margin:0;"><?php echo h($tr['active']); ?></label>
               </div>
 
               <button class="btn" type="submit"><?php echo h($tr['save']); ?></button>
@@ -422,14 +393,13 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                   <th>#</th>
                   <th><?php echo h($tr['name_ur']); ?></th>
                   <th><?php echo h($tr['gender']); ?></th>
-                  <th><?php echo h($tr['shuba']); ?></th>
-                  <th><?php echo h($tr['subah']); ?> / <?php echo h($tr['asr']); ?></th>
+                  <th><?php echo h($tr['session']); ?></th>
                   <th><?php echo h($tr['status']); ?></th>
                 </tr>
               </thead>
               <tbody>
               <?php if (empty($halaqaat)): ?>
-                <tr><td colspan="6" style="color:#777; padding:14px;">No data yet</td></tr>
+                <tr><td colspan="5" style="color:#777; padding:14px;"><?php echo h($tr['no_data']); ?></td></tr>
               <?php else: ?>
                 <?php foreach ($halaqaat as $hrow): ?>
                   <tr>
@@ -446,13 +416,13 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
                       <?php else: ?>
                         <span class="tag primary"><?php echo h($tr['boys']); ?></span>
                       <?php endif; ?>
-                      <?php if ((int)$hrow['girls_only'] === 1): ?>
-                        <span class="tag secondary"><?php echo h($tr['girls_only']); ?></span>
-                      <?php endif; ?>
                     </td>
-                    <td><span class="tag secondary"><?php echo h($tr[$hrow['shuba']] ?? $hrow['shuba']); ?></span></td>
-                    <td style="font-family:'Montserrat', system-ui;">
-                      <?php echo h($hrow['subah_time'] ?: '-'); ?> / <?php echo h($hrow['asr_time'] ?: '-'); ?>
+                    <td>
+                      <?php if (($hrow['session'] ?? '') === 'asr'): ?>
+                        <span class="tag secondary"><?php echo h($tr['asr']); ?></span>
+                      <?php else: ?>
+                        <span class="tag secondary"><?php echo h($tr['subah']); ?></span>
+                      <?php endif; ?>
                     </td>
                     <td>
                       <?php if ((int)$hrow['is_active'] === 1): ?>

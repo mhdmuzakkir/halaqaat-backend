@@ -59,7 +59,6 @@ $T = [
     'err_db' => 'ڈیٹا محفوظ نہیں ہوا۔',
     'no_data' => 'ابھی تک کوئی ڈیٹا نہیں',
 
-    // NEW
     'students_count' => 'طلبہ',
     'open' => 'کھولیں',
   ],
@@ -99,7 +98,6 @@ $T = [
     'err_db' => 'Could not save data.',
     'no_data' => 'No data yet',
 
-    // NEW
     'students_count' => 'Students',
     'open' => 'Open',
   ],
@@ -112,9 +110,8 @@ $err = '';
 // Normalize halaqa gender to final rule: boy/girl
 function normalize_halaqa_gender($g) {
     $g = strtolower(trim((string)$g));
-    // accept old values too
     if ($g === 'girls' || $g === 'girl') return 'girl';
-    return 'boy'; // default boys
+    return 'boy';
 }
 function is_girl_group($g) {
     $g = strtolower(trim((string)$g));
@@ -127,18 +124,16 @@ function h($s){ return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $name_ur = trim($_POST['name_ur'] ?? '');
     $name_en = trim($_POST['name_en'] ?? '');
-    $gender_in  = $_POST['gender'] ?? 'boy';      // can be boys/girls from UI
+    $gender_in  = $_POST['gender'] ?? 'boy';
     $session = $_POST['session'] ?? 'subah';
     $is_active = !empty($_POST['is_active']) ? 1 : 0;
 
-    // enforce final values
-    $gender  = normalize_halaqa_gender($gender_in); // boy/girl
+    $gender  = normalize_halaqa_gender($gender_in);
     if (!in_array($session, ['subah','asr'], true)) $session = 'subah';
 
     if ($name_ur === '') {
         $err = $tr['err_required'];
     } else {
-        // NOTE: halaqaat table columns: name_ur, name_en, gender, session, is_active
         $stmt = $conn->prepare("INSERT INTO halaqaat (name_ur, name_en, gender, session, is_active) VALUES (?, ?, ?, ?, ?)");
         if (!$stmt) {
             $err = $tr['err_db'];
@@ -155,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch list + students count (single query, no per-row queries)
+// Fetch list + students count (single query)
 $halaqaat = [];
 $sql = "
   SELECT
@@ -232,148 +227,65 @@ if ($res) {
 
       --boy:#2f6fd6;
       --girl:#d24e8a;
+      --subah:#ff8c00;
+      --asr:#784614;
     }
 
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      background:var(--bg);
-      color:var(--accent);
-    }
+    body{ margin:0; background:var(--bg); color:var(--accent); }
 
-    /* Layout */
-    .layout{
-      min-height:100vh;
-      display:grid;
-      grid-template-columns: 280px 1fr;
-    }
+    .layout{ min-height:100vh; display:grid; grid-template-columns: 280px 1fr; }
 
-    /* Sidebar */
     .sidebar{
       background:linear-gradient(180deg, var(--sidebar), var(--sidebar2));
-      color:#fff;
-      padding:16px;
-      position:sticky;
-      top:0;
-      height:100vh;
-      overflow:auto;
+      color:#fff; padding:16px; position:sticky; top:0; height:100vh; overflow:auto;
     }
     .brand{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding:8px 8px 16px;
-      border-bottom:1px solid rgba(255,255,255,.12);
-      margin-bottom:12px;
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding:8px 8px 16px; border-bottom:1px solid rgba(255,255,255,.12); margin-bottom:12px;
     }
-    .brand .name{
-      font-weight:900;
-      font-size:16px;
-      letter-spacing:.4px;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-    }
-    .brand .sub{
-      font-weight:700;
-      font-size:12px;
-      opacity:.85;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
-    }
+    .brand .name{ font-weight:900; font-size:16px; letter-spacing:.4px; font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
+    .brand .sub{ font-weight:700; font-size:12px; opacity:.85; font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif; }
 
     .sideToggle{
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.08);
-      color:#fff;
-      padding:8px 10px;
-      border-radius:12px;
-      font-weight:900;
-      cursor:pointer;
+      color:#fff; padding:8px 10px; border-radius:12px; font-weight:900; cursor:pointer;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
     .sideToggle:hover{ background:rgba(255,255,255,.12); }
 
-    /* PC collapsible sidebar behavior */
-    .layout.collapsed{
-      grid-template-columns: 90px 1fr;
-    }
+    .layout.collapsed{ grid-template-columns: 90px 1fr; }
     .layout.collapsed .brand .name,
     .layout.collapsed .brand .sub,
     .layout.collapsed .nav a span.txt,
-    .layout.collapsed .sidebarBottom{
-      display:none;
-    }
-    .layout.collapsed .nav a{
-      justify-content:center;
-      padding:12px;
-    }
-    .layout.collapsed .nav a .ico{
-      width:22px;
-      display:inline-flex;
-      justify-content:center;
-      align-items:center;
-    }
+    .layout.collapsed .sidebarBottom{ display:none; }
+    .layout.collapsed .nav a{ justify-content:center; padding:12px; }
+    .layout.collapsed .nav a .ico{ width:22px; display:inline-flex; justify-content:center; align-items:center; }
     .nav a{ gap:10px; }
 
-    .nav{
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-      margin-top:10px;
-    }
+    .nav{ display:flex; flex-direction:column; gap:8px; margin-top:10px; }
     .nav a{
-      text-decoration:none;
-      color:#fff;
-      padding:10px 12px;
-      border-radius:12px;
-      font-weight:800;
-      font-size:13px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      background:transparent;
-      border:1px solid rgba(255,255,255,.10);
-
-      position:relative;
-      padding-left:40px;
+      text-decoration:none; color:#fff; padding:10px 12px; border-radius:12px;
+      font-weight:800; font-size:13px; display:flex; align-items:center; justify-content:space-between; gap:10px;
+      background:transparent; border:1px solid rgba(255,255,255,.10);
+      position:relative; padding-left:40px;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
+    html[dir="rtl"] .nav a{ padding-left:12px; padding-right:40px; }
 
-    html[dir="rtl"] .nav a{
-      padding-left:12px;
-      padding-right:40px;
-    }
-
-    .nav a.active{
-      background:rgba(255,255,255,.10);
-      border-color:rgba(255,255,255,.18);
-    }
-    .nav a:hover{
-      background:rgba(255,255,255,.08);
-    }
+    .nav a.active{ background:rgba(255,255,255,.10); border-color:rgba(255,255,255,.18); }
+    .nav a:hover{ background:rgba(255,255,255,.08); }
 
     .sidebarBottom{
-      margin-top:14px;
-      padding-top:14px;
-      border-top:1px solid rgba(255,255,255,.12);
-      display:flex;
-      flex-direction:column;
-      gap:10px;
+      margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.12);
+      display:flex; flex-direction:column; gap:10px;
     }
 
-    /* Sidebar icons */
     .nav a::before{
-      content:'';
-      position:absolute;
-      width:16px;
-      height:16px;
-      background:rgba(255,255,255,.9);
-      mask-size:contain;
-      mask-repeat:no-repeat;
-      mask-position:center;
-      -webkit-mask-size:contain;
-      -webkit-mask-repeat:no-repeat;
-      -webkit-mask-position:center;
+      content:''; position:absolute; width:16px; height:16px; background:rgba(255,255,255,.9);
+      mask-size:contain; mask-repeat:no-repeat; mask-position:center;
+      -webkit-mask-size:contain; -webkit-mask-repeat:no-repeat; -webkit-mask-position:center;
     }
     html[dir="ltr"] .nav a::before{ left:12px; }
     html[dir="rtl"] .nav a::before{ right:12px; }
@@ -400,96 +312,47 @@ if ($res) {
       -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.11-.2-.36-.28-.57-.22l-2.39.96c-.5-.38-1.04-.7-1.64-.94L14.5 2h-5l-.37 2.35c-.6.24-1.14.56-1.64.94l-2.39-.96c-.21-.06-.46.02-.57.22L2.61 7.87c-.11.2-.06.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52c-.18.14-.23.41-.12.61l1.92 3.32c.11.2.36.28.57.22l2.39-.96c.5.38 1.04.7 1.64.94L9.5 22h5l.37-2.35c.6-.24 1.14-.56 1.64-.94l2.39.96c.21.06.46-.02.57-.22l1.92-3.32c.11-.2.06-.47-.12-.61l-2.03-1.58z"/></svg>');
     }
 
-    /* Main */
     .main{ padding:18px; }
 
-    /* Topbar */
     .topbar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      flex-wrap:wrap;
-      margin-bottom:14px;
+      display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px;
     }
     .titleBox{
       background:linear-gradient(90deg, rgba(68,68,68,.92), rgba(68,68,68,.70));
-      color:#fff;
-      border-radius:16px;
-      padding:16px 18px;
-      border-bottom:4px solid var(--secondary);
-      flex:1;
-      min-width:260px;
+      color:#fff; border-radius:16px; padding:16px 18px; border-bottom:4px solid var(--secondary);
+      flex:1; min-width:260px;
     }
     .titleBox .t{ margin:0; font-size:18px; font-weight:900; }
     .titleBox .s{ margin:6px 0 0; opacity:.92; font-size:13px; line-height:1.7; }
 
-    .controls{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-    }
+    .controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
     .pill{
-      text-decoration:none;
-      padding:8px 12px;
-      border-radius:999px;
-      border:1px solid var(--border);
-      background:#fff;
-      color:var(--accent);
-      font-weight:900;
-      font-size:13px;
+      text-decoration:none; padding:8px 12px; border-radius:999px; border:1px solid var(--border);
+      background:#fff; color:var(--accent); font-weight:900; font-size:13px;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-    .pill.active{
-      background: var(--secondary);
-      border-color: var(--secondary);
-      color:#fff;
-    }
-    .pill.logout{
-      background:var(--primary);
-      color:#fff;
-      border-color:var(--primary);
-    }
+    .pill.active{ background: var(--secondary); border-color: var(--secondary); color:#fff; }
+    .pill.logout{ background:var(--primary); color:#fff; border-color:var(--primary); }
 
-    /* Cards */
     .grid{display:grid; grid-template-columns: 1fr 1fr; gap:12px;}
     @media (max-width: 980px){ .grid{grid-template-columns:1fr;} }
 
     .card{
-      background:#fff;
-      border:1px solid var(--border);
-      border-radius:16px;
-      box-shadow:0 6px 18px rgba(0,0,0,.04);
-      overflow:hidden;
+      background:#fff; border:1px solid var(--border); border-radius:16px;
+      box-shadow:0 6px 18px rgba(0,0,0,.04); overflow:hidden;
     }
-    .cardHeader{
-      padding:12px 14px;
-      border-bottom:1px solid var(--border);
-      font-weight:900;
-      font-size:13px;
-    }
+    .cardHeader{ padding:12px 14px; border-bottom:1px solid var(--border); font-weight:900; font-size:13px; }
     .cardBody{padding:14px;}
 
     label{display:block; margin:10px 0 6px; font-weight:800; font-size:14px;}
-
     input, select{
-      width:100%;
-      padding:10px 12px;
-      border:1px solid var(--border);
-      border-radius:12px;
-      outline:none;
-      background:#fff;
-      font-size:14px;
+      width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:12px;
+      outline:none; background:#fff; font-size:14px;
     }
 
-    /* Dropdown arrow + RTL/LTR padding */
     select{
-      appearance:none;
-      -webkit-appearance:none;
-      -moz-appearance:none;
-      background-repeat:no-repeat;
-      background-size:14px 14px;
+      appearance:none; -webkit-appearance:none; -moz-appearance:none;
+      background-repeat:no-repeat; background-size:14px 14px;
       background-position: calc(100% - 12px) 50%;
       padding-right:38px;
       background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='%23666' d='M7 10l5 5 5-5z'/></svg>");
@@ -511,35 +374,18 @@ if ($res) {
     @media (max-width: 520px){ .row2{grid-template-columns:1fr;} }
 
     .btn{
-      width:100%;
-      margin-top:14px;
-      padding:12px;
-      border:0;
-      border-radius:12px;
-      background:var(--primary);
-      color:#fff;
-      font-weight:900;
-      cursor:pointer;
-      font-size:15px;
+      width:100%; margin-top:14px; padding:12px; border:0; border-radius:12px;
+      background:var(--primary); color:#fff; font-weight:900; cursor:pointer; font-size:15px;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
 
     .msg{
-      padding:10px 12px;
-      border-radius:12px;
-      background:rgba(62,132,106,.10);
-      border:1px solid rgba(62,132,106,.25);
-      font-weight:900;
-      margin-bottom:12px;
+      padding:10px 12px; border-radius:12px; background:rgba(62,132,106,.10);
+      border:1px solid rgba(62,132,106,.25); font-weight:900; margin-bottom:12px;
     }
     .err{
-      padding:10px 12px;
-      border-radius:12px;
-      background:#fff3f3;
-      border:1px solid #f2c7c7;
-      color:#8a1f1f;
-      font-weight:900;
-      margin-bottom:12px;
+      padding:10px 12px; border-radius:12px; background:#fff3f3;
+      border:1px solid #f2c7c7; color:#8a1f1f; font-weight:900; margin-bottom:12px;
     }
 
     table{width:100%; border-collapse:separate; border-spacing:0; font-size:13px;}
@@ -557,43 +403,46 @@ if ($res) {
       white-space:nowrap;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-    .tag.primary{background:rgba(62,132,106,.12); border-color:rgba(62,132,106,.35);}
-    .tag.secondary{background:rgba(177,143,110,.14); border-color:rgba(177,143,110,.45);}
+
+    /* ===== Requested Tag Colors ===== */
+    .tag.boy{
+      background: rgba(47,111,214,.18);
+      border-color: rgba(47,111,214,.55);
+      color: #1b3f86;
+    }
+    .tag.girl{
+      background: rgba(210,78,138,.18);
+      border-color: rgba(210,78,138,.55);
+      color: #7a1f4a;
+    }
+    .tag.subah{
+      background: rgba(255,140,0,.22);
+      border-color: rgba(255,140,0,.60);
+      color: #6a3a00;
+    }
+    .tag.asr{
+      background: rgba(120,70,20,.22);
+      border-color: rgba(120,70,20,.60);
+      color: #4a2a0d;
+    }
 
     .checkRow{display:flex; align-items:center; gap:10px; margin-top:10px;}
     .checkRow input{width:auto; transform:scale(1.1);}
 
-    /* NEW: small action button */
     .btnMini{
-      display:inline-block;
-      padding:6px 10px;
-      border-radius:10px;
-      border:1px solid var(--border);
-      background:#fff;
-      font-weight:900;
-      text-decoration:none;
-      color:var(--accent);
+      display:inline-block; padding:6px 10px; border-radius:10px; border:1px solid var(--border);
+      background:#fff; font-weight:900; text-decoration:none; color:var(--accent);
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       white-space:nowrap;
     }
     .btnMini:hover{ background:rgba(62,132,106,.08); border-color:rgba(62,132,106,.25); }
 
-    /* Mobile sidebar */
     .menuBtn{
-      display:none;
-      background:#3e846a;
-      border:1px solid rgba(255,255,255,.6);
-      color:#ffffff;
-      padding:10px 12px;
-      border-radius:12px;
-      font-weight:900;
-      font-size:18px;
-      cursor:pointer;
-      line-height:1;
+      display:none; background:#3e846a; border:1px solid rgba(255,255,255,.6); color:#ffffff;
+      padding:10px 12px; border-radius:12px; font-weight:900; font-size:18px; cursor:pointer; line-height:1;
       font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-    .menuBtn:focus,
-    .menuBtn:active{ outline:none; box-shadow:none; }
+    .menuBtn:focus, .menuBtn:active{ outline:none; box-shadow:none; }
 
     @media (max-width: 980px){
       .layout{grid-template-columns: 1fr;}
@@ -601,33 +450,17 @@ if ($res) {
       .menuBtn{display:inline-block;}
 
       .sidebar{
-        position:fixed;
-        z-index:50;
-        top:0; bottom:0;
-        width:280px;
-        overflow:auto;
+        position:fixed; z-index:50; top:0; bottom:0; width:280px; overflow:auto;
         transition:transform .2s ease;
       }
 
-      html[dir="ltr"] .sidebar{
-        left:0;
-        transform:translateX(-110%);
-      }
-      html[dir="rtl"] .sidebar{
-        right:0;
-        transform:translateX(110%);
-      }
+      html[dir="ltr"] .sidebar{ left:0; transform:translateX(-110%); }
+      html[dir="rtl"] .sidebar{ right:0; transform:translateX(110%); }
 
-      .sidebar.open{
-        transform:translateX(0) !important;
-      }
+      .sidebar.open{ transform:translateX(0) !important; }
 
       .overlay{
-        display:none;
-        position:fixed;
-        inset:0;
-        background:rgba(0,0,0,.35);
-        z-index:40;
+        display:none; position:fixed; inset:0; background:rgba(0,0,0,.35); z-index:40;
       }
       .overlay.show{display:block;}
     }
@@ -638,7 +471,6 @@ if ($res) {
   <div class="overlay" id="overlay" onclick="toggleSidebar(false)"></div>
 
   <div class="layout">
-    <!-- Sidebar (SAME as dashboard_admin.php) -->
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div>
@@ -651,11 +483,7 @@ if ($res) {
       <nav class="nav">
         <a class="dash" href="dashboard_admin.php"><span class="txt"><?php echo h($tr['nav_dashboard']); ?></span></a>
         <a class="active halaqa" href="halaqaat_admin.php"><span class="txt"><?php echo h($tr['nav_halqaat']); ?></span></a>
-
-        <!-- CHANGED: no href="#" -->
         <a class="students" href="students_admin.php"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
-
-        <!-- left as-is for now (modules not created yet) -->
         <a class="ustaaz" href="#"><span class="txt"><?php echo h($tr['nav_ustaaz']); ?></span></a>
         <a class="exams" href="#"><span class="txt"><?php echo h($tr['nav_exams']); ?></span></a>
         <a class="reports" href="#"><span class="txt"><?php echo h($tr['nav_reports']); ?></span></a>
@@ -667,7 +495,6 @@ if ($res) {
       </div>
     </aside>
 
-    <!-- Main -->
     <main class="main">
       <div class="topbar">
         <button class="menuBtn" type="button" onclick="toggleSidebar()">☰</button>
@@ -702,8 +529,6 @@ if ($res) {
               <div class="row2">
                 <div>
                   <label><?php echo h($tr['gender']); ?></label>
-
-                  <!-- CHANGED: store as boy/girl (still shows Urdu labels) -->
                   <select name="gender">
                     <?php $gSel = normalize_halaqa_gender($_POST['gender'] ?? 'boy'); ?>
                     <option value="boy"  <?php echo ($gSel==='boy')?'selected':'';  ?>><?php echo h($tr['boys']); ?></option>
@@ -740,11 +565,8 @@ if ($res) {
                   <th><?php echo h($tr['name_ur']); ?></th>
                   <th><?php echo h($tr['gender']); ?></th>
                   <th><?php echo h($tr['session']); ?></th>
-
-                  <!-- NEW -->
                   <th><?php echo h($tr['students_count']); ?></th>
                   <th><?php echo h($tr['open']); ?></th>
-
                   <th><?php echo h($tr['status']); ?></th>
                 </tr>
               </thead>
@@ -766,25 +588,27 @@ if ($res) {
                         <div style="font-size:12px; color:#666;"><?php echo h($hrow['name_en']); ?></div>
                       <?php endif; ?>
                     </td>
+
+                    <!-- CHANGED: gender tag colors -->
                     <td>
                       <?php if ($isGirl): ?>
-                        <span class="tag secondary"><?php echo h($tr['girls']); ?></span>
+                        <span class="tag girl"><?php echo h($tr['girls']); ?></span>
                       <?php else: ?>
-                        <span class="tag primary"><?php echo h($tr['boys']); ?></span>
+                        <span class="tag boy"><?php echo h($tr['boys']); ?></span>
                       <?php endif; ?>
                     </td>
+
+                    <!-- CHANGED: session tag colors -->
                     <td>
                       <?php if (($hrow['session'] ?? '') === 'asr'): ?>
-                        <span class="tag secondary"><?php echo h($tr['asr']); ?></span>
+                        <span class="tag asr"><?php echo h($tr['asr']); ?></span>
                       <?php else: ?>
-                        <span class="tag secondary"><?php echo h($tr['subah']); ?></span>
+                        <span class="tag subah"><?php echo h($tr['subah']); ?></span>
                       <?php endif; ?>
                     </td>
 
-                    <!-- NEW: students count -->
                     <td><span class="tag"><?php echo $studentsCount; ?></span></td>
 
-                    <!-- NEW: open halaqa in new tab -->
                     <td>
                       <a class="btnMini" href="halaqa_view.php?id=<?php echo $hid; ?>" target="_blank" rel="noopener">
                         <?php echo h($tr['open']); ?>
@@ -793,7 +617,7 @@ if ($res) {
 
                     <td>
                       <?php if ((int)$hrow['is_active'] === 1): ?>
-                        <span class="tag primary"><?php echo h($tr['active']); ?></span>
+                        <span class="tag"><?php echo h($tr['active']); ?></span>
                       <?php else: ?>
                         <span class="tag"><?php echo h($tr['inactive']); ?></span>
                       <?php endif; ?>
@@ -820,13 +644,8 @@ if ($res) {
 
       if (isMobile()) {
         var open = typeof forceOpen === 'boolean' ? forceOpen : !sb.classList.contains('open');
-        if (open) {
-          sb.classList.add('open');
-          ov.classList.add('show');
-        } else {
-          sb.classList.remove('open');
-          ov.classList.remove('show');
-        }
+        if (open) { sb.classList.add('open'); ov.classList.add('show'); }
+        else { sb.classList.remove('open'); ov.classList.remove('show'); }
       } else {
         layout.classList.toggle('collapsed');
         sb.classList.remove('open');
@@ -840,12 +659,8 @@ if ($res) {
       var layout = document.querySelector('.layout');
       if (!sb || !ov || !layout) return;
 
-      if (!isMobile()) {
-        sb.classList.remove('open');
-        ov.classList.remove('show');
-      } else {
-        layout.classList.remove('collapsed');
-      }
+      if (!isMobile()) { sb.classList.remove('open'); ov.classList.remove('show'); }
+      else { layout.classList.remove('collapsed'); }
     });
   </script>
 

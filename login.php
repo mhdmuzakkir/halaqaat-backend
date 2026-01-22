@@ -93,6 +93,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!doctype html>
 <html lang="<?php echo htmlspecialchars($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
 <head>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Nasbody
+    taliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><?php echo htmlspecialchars($tr['title']); ?> — <?php echo htmlspecialchars($tr['app']); ?></title>
@@ -107,12 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
     *{box-sizing:border-box}
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--charcoal);
-    }
+body{
+  margin:0;
+  background: var(--bg);
+  color: var(--accent);
+  font-family: 'Noto Nastaliq Urdu', serif; /* DEFAULT for Urdu */
+}
+
     .wrap{
       min-height:100vh;
       display:flex;
@@ -220,6 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       box-shadow: 0 0 0 4px rgba(62,132,106,.12);
     }
     .btn{
+         font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
   width:100%;
   margin-top:16px;
   padding:12px;

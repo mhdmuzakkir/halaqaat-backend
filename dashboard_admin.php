@@ -166,6 +166,19 @@ $sampleTop = [
   <title><?php echo htmlspecialchars($tr['dashboard']); ?> — <?php echo htmlspecialchars($tr['app']); ?></title>
 
   <style>
+    /* English mode: use Montserrat everywhere */
+html[lang="en"] body,
+html[lang="en"] .sidebar,
+html[lang="en"] .main,
+html[lang="en"] .pill,
+html[lang="en"] .nav a,
+html[lang="en"] .cardHeader,
+html[lang="en"] .stat .label,
+html[lang="en"] .stat .val,
+html[lang="en"] input {
+  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+}
+
     :root{
       --primary:#3e846a;      /* green */
       --secondary:#b18f6e;    /* golden brown */
@@ -188,9 +201,6 @@ $sampleTop = [
       background:var(--bg);
       color:var(--accent);
       font-family:'Noto Nastaliq Urdu', serif;
-    }
-    html[lang="en"] body{
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
 
     /* Layout */
@@ -220,13 +230,11 @@ $sampleTop = [
       margin-bottom:12px;
     }
     .brand .name{
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       font-weight:900;
       font-size:16px;
       letter-spacing:.4px;
     }
     .brand .sub{
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       font-weight:700;
       font-size:12px;
       opacity:.85;
@@ -278,7 +286,6 @@ $sampleTop = [
       color:#fff;
       padding:10px 12px;
       border-radius:12px;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       font-weight:800;
       font-size:13px;
       display:flex;
@@ -304,6 +311,64 @@ $sampleTop = [
       flex-direction:column;
       gap:10px;
     }
+    /* Sidebar icons (white, simple, no emoji) */
+.nav a{
+  position:relative;
+  padding-left:40px;
+}
+
+html[dir="rtl"] .nav a{
+  padding-left:12px;
+  padding-right:40px;
+}
+
+.nav a::before{
+  content:'';
+  position:absolute;
+  width:16px;
+  height:16px;
+  background:rgba(255,255,255,.9);
+  mask-size:contain;
+  mask-repeat:no-repeat;
+  mask-position:center;
+  -webkit-mask-size:contain;
+  -webkit-mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+}
+
+/* LTR icon position */
+html[dir="ltr"] .nav a::before{
+  left:12px;
+}
+
+/* RTL icon position */
+html[dir="rtl"] .nav a::before{
+  right:12px;
+}
+
+/* Individual icons */
+.nav a.dash::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>');
+}
+.nav a.halaqa::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/></svg>');
+}
+.nav a.students::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zM8 11c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5C15 14.17 10.33 13 8 13zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>');
+}
+.nav a.ustaaz::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/></svg>');
+}
+.nav a.exams::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1s-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>');
+}
+.nav a.reports::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm4 0h14v-2H7v2zm0-4h14v-2H7v2z"/></svg>');
+}
+.nav a.settings::before{
+  -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.11-.2-.36-.28-.57-.22l-2.39.96c-.5-.38-1.04-.7-1.64-.94L14.5 2h-5l-.37 2.35c-.6.24-1.14.56-1.64.94l-2.39-.96c-.21-.06-.46.02-.57.22L2.61 7.87c-.11.2-.06.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52c-.18.14-.23.41-.12.61l1.92 3.32c.11.2.36.28.57.22l2.39-.96c.5.38 1.04.7 1.64.94L9.5 22h5l.37-2.35c.6-.24 1.14-.56 1.64-.94l2.39.96c.21.06.46-.02.57-.22l1.92-3.32c.11-.2.06-.47-.12-.61l-2.03-1.58z"/></svg>');
+}
+
 
     /* Main */
     .main{
@@ -425,12 +490,10 @@ $sampleTop = [
       color:#666;
       font-weight:800;
       font-size:13px;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
     .stat .val{
       font-size:24px;
       font-weight:900;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       color:var(--accent);
     }
     .stat.primary{border-left:6px solid var(--primary);}
@@ -460,7 +523,6 @@ $sampleTop = [
       align-items:center;
       justify-content:space-between;
       gap:10px;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       font-weight:900;
       font-size:13px;
       color:var(--accent);
@@ -557,7 +619,6 @@ $sampleTop = [
       text-overflow:ellipsis;
     }
     html[lang="en"] .halaqaTitle{
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
     .halaqaMeta{
       display:flex;
@@ -572,7 +633,6 @@ $sampleTop = [
       gap:10px;
       color:#666;
       font-size:12px;
-      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
 
     /* Mobile sidebar */
@@ -587,32 +647,47 @@ $sampleTop = [
       cursor:pointer;
     }
 
-    @media (max-width: 980px){
-      .layout{grid-template-columns: 1fr;}
-      .sidebar{
-        position:fixed;
-        z-index:50;
-        inset:0 auto 0 0;
-        width:280px;
-        transform:translateX(-105%);
-        transition:transform .2s ease;
-      }
-      html[dir="rtl"] .sidebar{
-        inset:0 0 0 auto;
-        transform:translateX(105%);
-      }
-      .sidebar.open{transform:translateX(0);}
-      .main{padding:16px;}
-      .menuBtn{display:inline-block;}
-      .overlay{
-        display:none;
-        position:fixed;
-        inset:0;
-        background:rgba(0,0,0,.35);
-        z-index:40;
-      }
-      .overlay.show{display:block;}
-    }
+   @media (max-width: 980px){
+  .layout{grid-template-columns: 1fr;}
+  .main{padding:16px;}
+  .menuBtn{display:inline-block;}
+
+  .sidebar{
+    position:fixed;
+    z-index:50;
+    top:0; bottom:0;
+    width:280px;
+    overflow:auto;
+    transition:transform .2s ease;
+  }
+
+  /* LTR (English): hide to the LEFT */
+  html[dir="ltr"] .sidebar{
+    left:0;
+    transform:translateX(-110%);
+  }
+
+  /* RTL (Urdu): hide to the RIGHT */
+  html[dir="rtl"] .sidebar{
+    right:0;
+    transform:translateX(110%);
+  }
+
+  /* Open state (both) */
+  .sidebar.open{
+    transform:translateX(0) !important;
+  }
+
+  .overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.35);
+    z-index:40;
+  }
+  .overlay.show{display:block;}
+}
+
   </style>
 </head>
 
@@ -634,14 +709,15 @@ $sampleTop = [
 
 
 <nav class="nav">
-  <a class="active" href="dashboard_admin.php"><span class="ico">▦</span><span class="txt"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></span></a>
-  <a href="#"><span class="ico">📚</span><span class="txt"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></span></a>
-  <a href="#"><span class="ico">👥</span><span class="txt"><?php echo htmlspecialchars($tr['nav_students']); ?></span></a>
-  <a href="#"><span class="ico">🎓</span><span class="txt"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></span></a>
-  <a href="#"><span class="ico">📝</span><span class="txt"><?php echo htmlspecialchars($tr['nav_exams']); ?></span></a>
-  <a href="#"><span class="ico">📊</span><span class="txt"><?php echo htmlspecialchars($tr['nav_reports']); ?></span></a>
-  <a href="#"><span class="ico">⚙️</span><span class="txt"><?php echo htmlspecialchars($tr['nav_settings']); ?></span></a>
+  <a class="active dash" href="dashboard_admin.php"><span class="txt"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></span></a>
+  <a class="halaqa" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></span></a>
+  <a class="students" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_students']); ?></span></a>
+  <a class="ustaaz" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></span></a>
+  <a class="exams" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_exams']); ?></span></a>
+  <a class="reports" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_reports']); ?></span></a>
+  <a class="settings" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_settings']); ?></span></a>
 </nav>
+
 
 
       <div class="sidebarBottom">

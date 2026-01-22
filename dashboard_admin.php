@@ -231,6 +231,42 @@ $sampleTop = [
       font-size:12px;
       opacity:.85;
     }
+    .sideToggle{
+  border:1px solid rgba(255,255,255,.25);
+  background:rgba(255,255,255,.08);
+  color:#fff;
+  padding:8px 10px;
+  border-radius:12px;
+  font-weight:900;
+  cursor:pointer;
+  font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+}
+.sideToggle:hover{ background:rgba(255,255,255,.12); }
+
+/* PC collapsible sidebar behavior */
+.layout.collapsed{
+  grid-template-columns: 90px 1fr;
+}
+.layout.collapsed .brand .name,
+.layout.collapsed .brand .sub,
+.layout.collapsed .nav a span.txt,
+.layout.collapsed .sidebarBottom{
+  display:none;
+}
+.layout.collapsed .nav a{
+  justify-content:center;
+  padding:12px;
+}
+.layout.collapsed .nav a .ico{
+  width:22px;
+  display:inline-flex;
+  justify-content:center;
+  align-items:center;
+}
+.nav a{
+  gap:10px;
+}
+
     .nav{
       display:flex;
       flex-direction:column;
@@ -586,22 +622,27 @@ $sampleTop = [
   <div class="layout">
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-      <div class="brand">
-        <div>
-          <div class="name"><?php echo htmlspecialchars($tr['app']); ?></div>
-          <div class="sub"><?php echo htmlspecialchars($tr['dashboard']); ?></div>
-        </div>
-      </div>
+     <div class="brand">
+  <div>
+    <div class="name"><?php echo htmlspecialchars($tr['app']); ?></div>
+    <div class="sub"><?php echo htmlspecialchars($tr['dashboard']); ?></div>
+  </div>
+  <button class="sideToggle" type="button" onclick="toggleSidebar()">
+    ☰
+  </button>
+</div>
 
-      <nav class="nav">
-        <a class="active" href="dashboard_admin.php"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></a>
-        <a href="#"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></a>
-        <a href="#"><?php echo htmlspecialchars($tr['nav_students']); ?></a>
-        <a href="#"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></a>
-        <a href="#"><?php echo htmlspecialchars($tr['nav_exams']); ?></a>
-        <a href="#"><?php echo htmlspecialchars($tr['nav_reports']); ?></a>
-        <a href="#"><?php echo htmlspecialchars($tr['nav_settings']); ?></a>
-      </nav>
+
+<nav class="nav">
+  <a class="active" href="dashboard_admin.php"><span class="ico">▦</span><span class="txt"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></span></a>
+  <a href="#"><span class="ico">📚</span><span class="txt"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></span></a>
+  <a href="#"><span class="ico">👥</span><span class="txt"><?php echo htmlspecialchars($tr['nav_students']); ?></span></a>
+  <a href="#"><span class="ico">🎓</span><span class="txt"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></span></a>
+  <a href="#"><span class="ico">📝</span><span class="txt"><?php echo htmlspecialchars($tr['nav_exams']); ?></span></a>
+  <a href="#"><span class="ico">📊</span><span class="txt"><?php echo htmlspecialchars($tr['nav_reports']); ?></span></a>
+  <a href="#"><span class="ico">⚙️</span><span class="txt"><?php echo htmlspecialchars($tr['nav_settings']); ?></span></a>
+</nav>
+
 
       <div class="sidebarBottom">
         <a class="navLink pill logout" style="text-align:center;" href="logout.php"><?php echo htmlspecialchars($tr['logout']); ?></a>
@@ -611,7 +652,7 @@ $sampleTop = [
     <!-- Main -->
     <main class="main">
       <div class="topbar">
-        <button class="menuBtn" type="button" onclick="toggleSidebar(true)">☰</button>
+<button class="menuBtn" type="button" onclick="toggleSidebar()">☰</button>
 
         <div class="search">
           <input type="text" placeholder="<?php echo htmlspecialchars($tr['search']); ?>">
@@ -773,12 +814,20 @@ $sampleTop = [
     </main>
   </div>
 
-  <script>
-    function toggleSidebar(open) {
-      var sb = document.getElementById('sidebar');
-      var ov = document.getElementById('overlay');
-      if (!sb || !ov) return;
+ <script>
+  function isMobile() {
+    return window.innerWidth <= 980;
+  }
 
+  function toggleSidebar(forceOpen) {
+    var sb = document.getElementById('sidebar');
+    var ov = document.getElementById('overlay');
+    var layout = document.querySelector('.layout');
+    if (!sb || !ov || !layout) return;
+
+    if (isMobile()) {
+      // Mobile: slide-in sidebar
+      var open = typeof forceOpen === 'boolean' ? forceOpen : !sb.classList.contains('open');
       if (open) {
         sb.classList.add('open');
         ov.classList.add('show');
@@ -786,12 +835,36 @@ $sampleTop = [
         sb.classList.remove('open');
         ov.classList.remove('show');
       }
+    } else {
+      // PC: collapse/expand sidebar
+      layout.classList.toggle('collapsed');
+      // ensure mobile overlay is closed
+      sb.classList.remove('open');
+      ov.classList.remove('show');
     }
+  }
 
-    // Close sidebar when resizing up
-    window.addEventListener('resize', function () {
-      if (window.innerWidth > 980) toggleSidebar(false);
-    });
-  </script>
+  // close on overlay click
+  document.getElementById('overlay')?.addEventListener('click', function () {
+    toggleSidebar(false);
+  });
+
+  // On resize: reset mobile overlay
+  window.addEventListener('resize', function () {
+    var sb = document.getElementById('sidebar');
+    var ov = document.getElementById('overlay');
+    var layout = document.querySelector('.layout');
+    if (!sb || !ov || !layout) return;
+
+    if (!isMobile()) {
+      sb.classList.remove('open');
+      ov.classList.remove('show');
+    } else {
+      // On mobile, keep PC collapsed state off
+      layout.classList.remove('collapsed');
+    }
+  });
+</script>
+
 </body>
 </html>

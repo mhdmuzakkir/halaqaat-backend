@@ -247,11 +247,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <body>
   <div class="wrap">
     <div class="card">
+
       <div class="header">
         <div class="brand">
-          <div class="app"><?php echo htmlspecialchars($tr['app']); ?></div></div>
+          <div class="app"><?php echo htmlspecialchars($tr['app']); ?></div>
           <div class="title"><?php echo htmlspecialchars($tr['title']); ?></div>
         </div>
+
         <div class="lang">
           <a class="<?php echo $lang==='ur' ? 'active' : ''; ?>" href="?lang=ur"><?php echo htmlspecialchars($tr['switch_ur']); ?></a>
           <a class="<?php echo $lang==='en' ? 'active' : ''; ?>" href="?lang=en"><?php echo htmlspecialchars($tr['switch_en']); ?></a>
@@ -275,7 +277,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <button class="btn" type="submit"><?php echo htmlspecialchars($tr['login']); ?></button>
         </form>
       </div>
+
     </div>
   </div>
 </body>
+
 </html>

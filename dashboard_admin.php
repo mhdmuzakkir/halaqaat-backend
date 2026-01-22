@@ -50,15 +50,22 @@ $T = [
 
         'section_upcoming' => 'آنے والے امتحانات',
         'section_gender' => 'جنـس کے مطابق',
-        'section_recent_halqaat' => 'حلقات (نمونہ کارڈز)',
+        'section_recent_halqaat' => 'حلقات (تازہ)',
         'section_top_students' => 'امتیاز طلباء (نمونہ)',
 
         'boys' => 'طلباء',
         'girls' => 'طالبات',
+
+        // NEW RULES: session only
+        'session' => 'سیشن',
         'subah' => 'صبح',
         'asr' => 'عصر',
+
+        'active' => 'فعال',
+        'inactive' => 'غیر فعال',
+
         'view_all' => 'سب دیکھیں',
-        'sample' => 'نمونہ',
+        'no_halaqaat' => 'ابھی تک کوئی حلقہ نہیں',
     ],
     'en' => [
         'app' => 'Kahf Halaqat',
@@ -84,15 +91,22 @@ $T = [
 
         'section_upcoming' => 'Upcoming Exams',
         'section_gender' => 'By Gender',
-        'section_recent_halqaat' => 'Halaqaat (Sample Cards)',
+        'section_recent_halqaat' => 'Halaqaat (Latest)',
         'section_top_students' => 'Top Students (Sample)',
 
         'boys' => 'Boys',
         'girls' => 'Girls',
+
+        // NEW RULES: session only
+        'session' => 'Session',
         'subah' => 'Subah',
         'asr' => 'Asr',
+
+        'active' => 'Active',
+        'inactive' => 'Inactive',
+
         'view_all' => 'View all',
-        'sample' => 'Sample',
+        'no_halaqaat' => 'No halaqaat yet',
     ]
 ];
 
@@ -117,9 +131,13 @@ function scalar_int($conn, $sql) {
     return (int)(isset($row[0]) ? $row[0] : 0);
 }
 
-// -------------------- REAL STATS (safe fallback if tables not created yet) --------------------
+function h($s){
+    return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+}
+
+// -------------------- REAL STATS --------------------
 $stats = array(
-    'halaqaat' => 0,
+    'halqaat' => 0,
     'students' => 0,
     'ustaaz' => 0,
     'upcoming_exams' => 0,
@@ -128,13 +146,13 @@ $stats = array(
 );
 
 // ✅ FIX: your table is halaqaat (not halqaat)
-$tbl_halaqaat = 'halaqaat';
+$tbl_halqaat = 'halaqaat';
 $tbl_students = 'students';
 $tbl_users = 'users';
 $tbl_exams = 'exams';
 
-if (table_exists($conn, $tbl_halaqaat)) {
-    $stats['halaqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halaqaat`");
+if (table_exists($conn, $tbl_halqaat)) {
+    $stats['halqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halqaat`");
 }
 
 if (table_exists($conn, $tbl_students)) {
@@ -153,38 +171,21 @@ if (table_exists($conn, $tbl_exams)) {
     $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `exam_sessions` WHERE exam_date >= CURDATE()");
 }
 
-// -------------------- Sample cards (RULES UPDATED: no shuba, no timings; only session subah/asr) --------------------
-$sampleHalqaat = [
-    [
-        'title_ur' => 'حلقۃ الفاتحہ (طلباء)',
-        'title_en' => 'Al-Fatiha Boys',
-        'gender' => 'boys',
-        'session' => 'subah',
-        'count' => 14,
-        'ustaaz_ur' => 'محمد احمد',
-        'ustaaz_en' => 'Muhammad Ahmed',
-    ],
-    [
-        'title_ur' => 'حلقۃ النور (طالبات)',
-        'title_en' => 'Al-Noor Girls',
-        'gender' => 'girls',
-        'session' => 'asr',
-        'count' => 14,
-        'ustaaz_ur' => 'فاطمہ زہرا',
-        'ustaaz_en' => 'Fatima Zahra',
-    ],
-    [
-        'title_ur' => 'حلقۃ البقرہ (طلباء)',
-        'title_en' => 'Al-Baqarah Boys',
-        'gender' => 'boys',
-        'session' => 'asr',
-        'count' => 12,
-        'ustaaz_ur' => 'قاری بلال',
-        'ustaaz_en' => 'Qari Bilal',
-    ],
-];
+// -------------------- Latest Halaqaat (from DB) --------------------
+$recentHalaqaat = [];
+if (table_exists($conn, $tbl_halqaat)) {
+    $sql = "SELECT id, name_ur, name_en, gender, session, is_active
+            FROM `$tbl_halqaat`
+            ORDER BY id DESC
+            LIMIT 6";
+    $res = $conn->query($sql);
+    if ($res) {
+        while ($row = $res->fetch_assoc()) $recentHalaqaat[] = $row;
+        $res->free();
+    }
+}
 
-// Top students sample (no shuba now)
+// Sample top students (keep for now)
 $sampleTop = [
     ['name_ur'=>'عثمان طارق', 'name_en'=>'Usman Tariq', 'score'=>96],
     ['name_ur'=>'عائشہ ملک', 'name_en'=>'Ayesha Malik', 'score'=>94],
@@ -192,7 +193,7 @@ $sampleTop = [
 ];
 ?>
 <!doctype html>
-<html lang="<?php echo htmlspecialchars($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
+<html lang="<?php echo h($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -200,10 +201,10 @@ $sampleTop = [
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
 
-  <title><?php echo htmlspecialchars($tr['dashboard']); ?> — <?php echo htmlspecialchars($tr['app']); ?></title>
+  <title><?php echo h($tr['dashboard']); ?> — <?php echo h($tr['app']); ?></title>
 
   <style>
-/* ✅ Force Urdu font everywhere in Urdu mode */
+/* ✅ Force fonts by language (fix places still not Nastaliq) */
 html[lang="ur"] body,
 html[lang="ur"] .sidebar,
 html[lang="ur"] .main,
@@ -213,17 +214,15 @@ html[lang="ur"] .cardHeader,
 html[lang="ur"] .stat .label,
 html[lang="ur"] .stat .val,
 html[lang="ur"] input,
-html[lang="ur"] .row .title,
-html[lang="ur"] .row .meta,
-html[lang="ur"] .badge,
-html[lang="ur"] .halaqaTitle,
-html[lang="ur"] .halaqaFoot,
-html[lang="ur"] .hero h1,
-html[lang="ur"] .hero p{
+html[lang="ur"] select,
+html[lang="ur"] option,
+html[lang="ur"] button,
+html[lang="ur"] table,
+html[lang="ur"] th,
+html[lang="ur"] td {
   font-family:'Noto Nastaliq Urdu', serif !important;
 }
 
-/* English mode: use Montserrat everywhere */
 html[lang="en"] body,
 html[lang="en"] .sidebar,
 html[lang="en"] .main,
@@ -233,13 +232,12 @@ html[lang="en"] .cardHeader,
 html[lang="en"] .stat .label,
 html[lang="en"] .stat .val,
 html[lang="en"] input,
-html[lang="en"] .row .title,
-html[lang="en"] .row .meta,
-html[lang="en"] .badge,
-html[lang="en"] .halaqaTitle,
-html[lang="en"] .halaqaFoot,
-html[lang="en"] .hero h1,
-html[lang="en"] .hero p{
+html[lang="en"] select,
+html[lang="en"] option,
+html[lang="en"] button,
+html[lang="en"] table,
+html[lang="en"] th,
+html[lang="en"] td {
   font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
 }
 
@@ -264,7 +262,6 @@ html[lang="en"] .hero p{
       margin:0;
       background:var(--bg);
       color:var(--accent);
-      font-family:'Noto Nastaliq Urdu', serif;
     }
 
     .layout{
@@ -295,12 +292,15 @@ html[lang="en"] .hero p{
       font-weight:900;
       font-size:16px;
       letter-spacing:.4px;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
     }
     .brand .sub{
       font-weight:700;
       font-size:12px;
       opacity:.85;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
     }
+
     .sideToggle{
       border:1px solid rgba(255,255,255,.25);
       background:rgba(255,255,255,.08);
@@ -309,9 +309,11 @@ html[lang="en"] .hero p{
       border-radius:12px;
       font-weight:900;
       cursor:pointer;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
     }
     .sideToggle:hover{ background:rgba(255,255,255,.12); }
 
+    /* PC collapsible sidebar behavior */
     .layout.collapsed{
       grid-template-columns: 90px 1fr;
     }
@@ -325,6 +327,7 @@ html[lang="en"] .hero p{
       justify-content:center;
       padding:12px;
     }
+    .nav a{ gap:10px; }
 
     .nav{
       display:flex;
@@ -345,8 +348,10 @@ html[lang="en"] .hero p{
       gap:10px;
       background:transparent;
       border:1px solid rgba(255,255,255,.10);
+
       position:relative;
       padding-left:40px;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
     }
     html[dir="rtl"] .nav a{
       padding-left:12px;
@@ -361,6 +366,16 @@ html[lang="en"] .hero p{
       background:rgba(255,255,255,.08);
     }
 
+    .sidebarBottom{
+      margin-top:14px;
+      padding-top:14px;
+      border-top:1px solid rgba(255,255,255,.12);
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+
+    /* Sidebar icons */
     .nav a::before{
       content:'';
       position:absolute;
@@ -374,7 +389,6 @@ html[lang="en"] .hero p{
       -webkit-mask-repeat:no-repeat;
       -webkit-mask-position:center;
     }
-
     html[dir="ltr"] .nav a::before{ left:12px; }
     html[dir="rtl"] .nav a::before{ right:12px; }
 
@@ -398,15 +412,6 @@ html[lang="en"] .hero p{
     }
     .nav a.settings::before{
       -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.11-.2-.36-.28-.57-.22l-2.39.96c-.5-.38-1.04-.7-1.64-.94L14.5 2h-5l-.37 2.35c-.6.24-1.14.56-1.64.94l-2.39-.96c-.21-.06-.46.02-.57.22L2.61 7.87c-.11.2-.06.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52c-.18.14-.23.41-.12.61l1.92 3.32c.11.2.36.28.57.22l2.39-.96c.5.38 1.04.7 1.64.94L9.5 22h5l.37-2.35c.6-.24 1.14-.56 1.64-.94l2.39.96c.21.06.46-.02.57-.22l1.92-3.32c.11-.2.06-.47-.12-.61l-2.03-1.58z"/></svg>');
-    }
-
-    .sidebarBottom{
-      margin-top:14px;
-      padding-top:14px;
-      border-top:1px solid rgba(255,255,255,.12);
-      display:flex;
-      flex-direction:column;
-      gap:10px;
     }
 
     .main{ padding:18px; }
@@ -439,8 +444,8 @@ html[lang="en"] .hero p{
       font-size:14px;
       background:transparent;
       color:var(--accent);
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
-
     .controls{
       display:flex;
       align-items:center;
@@ -456,6 +461,7 @@ html[lang="en"] .hero p{
       color:var(--accent);
       font-weight:900;
       font-size:13px;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
     .pill.active{
       background: var(--secondary);
@@ -475,20 +481,9 @@ html[lang="en"] .hero p{
       padding:20px;
       border-bottom:4px solid var(--secondary);
       margin-bottom:14px;
-      position:relative;
-      overflow:hidden;
     }
-    .hero h1{
-      margin:0 0 8px 0;
-      font-size:24px;
-      font-weight:900;
-    }
-    .hero p{
-      margin:0;
-      opacity:.92;
-      line-height:1.8;
-      font-size:14px;
-    }
+    .hero h1{ margin:0 0 8px 0; font-size:24px; font-weight:900; }
+    .hero p{ margin:0; opacity:.92; line-height:1.8; font-size:14px; }
 
     .stats{
       display:grid;
@@ -496,12 +491,9 @@ html[lang="en"] .hero p{
       gap:12px;
       margin-bottom:14px;
     }
-    @media (max-width: 1100px){
-      .stats{grid-template-columns: repeat(2, minmax(0,1fr));}
-    }
-    @media (max-width: 520px){
-      .stats{grid-template-columns: 1fr;}
-    }
+    @media (max-width: 1100px){ .stats{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    @media (max-width: 520px){ .stats{grid-template-columns: 1fr;} }
+
     .stat{
       background:#fff;
       border:1px solid var(--border);
@@ -514,16 +506,8 @@ html[lang="en"] .hero p{
       gap:10px;
       min-height:82px;
     }
-    .stat .label{
-      color:#666;
-      font-weight:800;
-      font-size:13px;
-    }
-    .stat .val{
-      font-size:24px;
-      font-weight:900;
-      color:var(--accent);
-    }
+    .stat .label{ color:#666; font-weight:800; font-size:13px; }
+    .stat .val{ font-size:24px; font-weight:900; color:var(--accent); }
     .stat.primary{border-left:6px solid var(--primary);}
     .stat.secondary{border-left:6px solid var(--secondary);}
 
@@ -532,9 +516,7 @@ html[lang="en"] .hero p{
       grid-template-columns: 1.2fr .8fr;
       gap:12px;
     }
-    @media (max-width: 980px){
-      .grid{grid-template-columns: 1fr;}
-    }
+    @media (max-width: 980px){ .grid{grid-template-columns: 1fr;} }
 
     .card{
       background:#fff;
@@ -556,11 +538,7 @@ html[lang="en"] .hero p{
     }
     .cardBody{padding:14px;}
 
-    .list{
-      display:flex;
-      flex-direction:column;
-      gap:10px;
-    }
+    .list{ display:flex; flex-direction:column; gap:10px; }
     .row{
       display:flex;
       align-items:center;
@@ -571,12 +549,7 @@ html[lang="en"] .hero p{
       border-radius:14px;
       background:#fff;
     }
-    .row .left{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-      min-width:0;
-    }
+    .row .left{ display:flex; flex-direction:column; gap:4px; min-width:0; }
     .row .title{
       font-weight:900;
       font-size:14px;
@@ -588,16 +561,19 @@ html[lang="en"] .hero p{
     .row .meta{
       font-size:12px;
       color:#666;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       display:flex;
       gap:8px;
       flex-wrap:wrap;
     }
+
     .badge{
       display:inline-block;
       padding:4px 10px;
       border-radius:999px;
       font-size:12px;
       font-weight:900;
+      font-family:'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       border:1px solid var(--border);
       background:#fff;
       color:var(--accent);
@@ -613,12 +589,9 @@ html[lang="en"] .hero p{
       grid-template-columns: repeat(3, minmax(0,1fr));
       gap:12px;
     }
-    @media (max-width: 1100px){
-      .halaqaGrid{grid-template-columns: repeat(2, minmax(0,1fr));}
-    }
-    @media (max-width: 600px){
-      .halaqaGrid{grid-template-columns: 1fr;}
-    }
+    @media (max-width: 1100px){ .halaqaGrid{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    @media (max-width: 600px){ .halaqaGrid{grid-template-columns: 1fr;} }
+
     .halaqaCard{
       border:1px solid var(--border);
       border-radius:16px;
@@ -653,6 +626,7 @@ html[lang="en"] .hero p{
       font-size:12px;
     }
 
+    /* Mobile sidebar */
     .menuBtn{
       display:none;
       background:#3e846a;
@@ -666,10 +640,7 @@ html[lang="en"] .hero p{
       line-height:1;
     }
     .menuBtn:focus,
-    .menuBtn:active{
-      outline:none;
-      box-shadow:none;
-    }
+    .menuBtn:active{ outline:none; box-shadow:none; }
 
     @media (max-width: 980px){
       .layout{grid-template-columns: 1fr;}
@@ -689,15 +660,12 @@ html[lang="en"] .hero p{
         left:0;
         transform:translateX(-110%);
       }
-
       html[dir="rtl"] .sidebar{
         right:0;
         transform:translateX(110%);
       }
 
-      .sidebar.open{
-        transform:translateX(0) !important;
-      }
+      .sidebar.open{ transform:translateX(0) !important; }
 
       .overlay{
         display:none;
@@ -719,25 +687,25 @@ html[lang="en"] .hero p{
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div>
-          <div class="name"><?php echo htmlspecialchars($tr['app']); ?></div>
-          <div class="sub"><?php echo htmlspecialchars($tr['dashboard']); ?></div>
+          <div class="name"><?php echo h($tr['app']); ?></div>
+          <div class="sub"><?php echo h($tr['dashboard']); ?></div>
         </div>
         <button class="sideToggle" type="button" onclick="toggleSidebar()">☰</button>
       </div>
 
       <nav class="nav">
-        <a class="active dash" href="dashboard_admin.php"><span class="txt"><?php echo htmlspecialchars($tr['nav_dashboard']); ?></span></a>
-        <!-- ✅ FIX: halaqaat link -->
-        <a class="halaqa" href="halaqaat_admin.php"><span class="txt"><?php echo htmlspecialchars($tr['nav_halqaat']); ?></span></a>
-        <a class="students" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_students']); ?></span></a>
-        <a class="ustaaz" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_ustaaz']); ?></span></a>
-        <a class="exams" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_exams']); ?></span></a>
-        <a class="reports" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_reports']); ?></span></a>
-        <a class="settings" href="#"><span class="txt"><?php echo htmlspecialchars($tr['nav_settings']); ?></span></a>
+        <a class="active dash" href="dashboard_admin.php"><span class="txt"><?php echo h($tr['nav_dashboard']); ?></span></a>
+        <!-- ✅ LINK TO REAL PAGE -->
+        <a class="halaqa" href="halaqaat_admin.php"><span class="txt"><?php echo h($tr['nav_halqaat']); ?></span></a>
+        <a class="students" href="#"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
+        <a class="ustaaz" href="#"><span class="txt"><?php echo h($tr['nav_ustaaz']); ?></span></a>
+        <a class="exams" href="#"><span class="txt"><?php echo h($tr['nav_exams']); ?></span></a>
+        <a class="reports" href="#"><span class="txt"><?php echo h($tr['nav_reports']); ?></span></a>
+        <a class="settings" href="#"><span class="txt"><?php echo h($tr['nav_settings']); ?></span></a>
       </nav>
 
       <div class="sidebarBottom">
-        <a class="navLink pill logout" style="text-align:center;" href="logout.php"><?php echo htmlspecialchars($tr['logout']); ?></a>
+        <a class="navLink pill logout" style="text-align:center;" href="logout.php"><?php echo h($tr['logout']); ?></a>
       </div>
     </aside>
 
@@ -747,38 +715,38 @@ html[lang="en"] .hero p{
         <button class="menuBtn" type="button" onclick="toggleSidebar()">☰</button>
 
         <div class="search">
-          <input type="text" placeholder="<?php echo htmlspecialchars($tr['search']); ?>">
+          <input type="text" placeholder="<?php echo h($tr['search']); ?>">
         </div>
 
         <div class="controls">
-          <a class="pill <?php echo $lang==='ur' ? 'active' : ''; ?>" href="?lang=ur"><?php echo htmlspecialchars($tr['switch_ur']); ?></a>
-          <a class="pill <?php echo $lang==='en' ? 'active' : ''; ?>" href="?lang=en"><?php echo htmlspecialchars($tr['switch_en']); ?></a>
-          <a class="pill logout" href="logout.php"><?php echo htmlspecialchars($tr['logout']); ?></a>
+          <a class="pill <?php echo $lang==='ur' ? 'active' : ''; ?>" href="?lang=ur"><?php echo h($tr['switch_ur']); ?></a>
+          <a class="pill <?php echo $lang==='en' ? 'active' : ''; ?>" href="?lang=en"><?php echo h($tr['switch_en']); ?></a>
+          <a class="pill logout" href="logout.php"><?php echo h($tr['logout']); ?></a>
         </div>
       </div>
 
       <section class="hero">
-        <h1><?php echo htmlspecialchars($tr['welcome']); ?></h1>
-        <p><?php echo htmlspecialchars($tr['welcome_sub']); ?> — <?php echo htmlspecialchars($fullName); ?></p>
+        <h1><?php echo h($tr['welcome']); ?></h1>
+        <p><?php echo h($tr['welcome_sub']); ?> — <?php echo h($fullName); ?></p>
       </section>
 
       <!-- Stats -->
       <section class="stats">
         <div class="stat secondary">
-          <div class="label"><?php echo htmlspecialchars($tr['stat_upcoming_exams']); ?></div>
+          <div class="label"><?php echo h($tr['stat_upcoming_exams']); ?></div>
           <div class="val"><?php echo (int)$stats['upcoming_exams']; ?></div>
         </div>
         <div class="stat primary">
-          <div class="label"><?php echo htmlspecialchars($tr['stat_total_ustaaz']); ?></div>
+          <div class="label"><?php echo h($tr['stat_total_ustaaz']); ?></div>
           <div class="val"><?php echo (int)$stats['ustaaz']; ?></div>
         </div>
         <div class="stat secondary">
-          <div class="label"><?php echo htmlspecialchars($tr['stat_total_students']); ?></div>
+          <div class="label"><?php echo h($tr['stat_total_students']); ?></div>
           <div class="val"><?php echo (int)$stats['students']; ?></div>
         </div>
         <div class="stat primary">
-          <div class="label"><?php echo htmlspecialchars($tr['stat_total_halqaat']); ?></div>
-          <div class="val"><?php echo (int)$stats['halaqaat']; ?></div>
+          <div class="label"><?php echo h($tr['stat_total_halqaat']); ?></div>
+          <div class="val"><?php echo (int)$stats['halqaat']; ?></div>
         </div>
       </section>
 
@@ -786,37 +754,54 @@ html[lang="en"] .hero p{
         <!-- Left column -->
         <div class="card">
           <div class="cardHeader">
-            <span><?php echo htmlspecialchars($tr['section_recent_halqaat']); ?></span>
-            <span class="badge secondary"><?php echo htmlspecialchars($tr['view_all']); ?></span>
+            <span><?php echo h($tr['section_recent_halqaat']); ?></span>
+            <a class="badge secondary" href="halaqaat_admin.php" style="text-decoration:none;"><?php echo h($tr['view_all']); ?></a>
           </div>
+
           <div class="cardBody">
-            <div class="halaqaGrid">
-              <?php foreach ($sampleHalqaat as $h): ?>
-                <div class="halaqaCard">
-                  <div class="halaqaTitle">
-                    <?php echo htmlspecialchars($lang==='ur' ? $h['title_ur'] : $h['title_en']); ?>
+            <?php if (empty($recentHalaqaat)): ?>
+              <div style="padding:10px; color:#777;"><?php echo h($tr['no_halaqaat']); ?></div>
+            <?php else: ?>
+              <div class="halaqaGrid">
+                <?php foreach ($recentHalaqaat as $hrow): ?>
+                  <?php
+                    $g = strtolower(trim($hrow['gender'] ?? 'boys'));
+                    if ($g !== 'girls' && $g !== 'boys') $g = 'boys';
+
+                    $sess = strtolower(trim($hrow['session'] ?? 'subah'));
+                    if ($sess !== 'asr' && $sess !== 'subah') $sess = 'subah';
+
+                    $title = ($lang === 'ur') ? ($hrow['name_ur'] ?? '') : ($hrow['name_en'] ?? '');
+                    $title = trim((string)$title);
+                    if ($title === '') $title = trim((string)($hrow['name_ur'] ?? $hrow['name_en'] ?? ('Halaqa #' . (int)$hrow['id'])));
+                  ?>
+                  <div class="halaqaCard">
+                    <div class="halaqaTitle"><?php echo h($title); ?></div>
+
+                    <div class="halaqaMeta">
+                      <span class="badge <?php echo ($g === 'girls') ? 'girl' : 'boy'; ?>">
+                        <?php echo h(($g === 'girls') ? $tr['girls'] : $tr['boys']); ?>
+                      </span>
+
+                      <span class="badge secondary">
+                        <?php echo h($sess === 'asr' ? $tr['asr'] : $tr['subah']); ?>
+                      </span>
+
+                      <?php if ((int)$hrow['is_active'] === 1): ?>
+                        <span class="badge primary"><?php echo h($tr['active']); ?></span>
+                      <?php else: ?>
+                        <span class="badge secondary"><?php echo h($tr['inactive']); ?></span>
+                      <?php endif; ?>
+                    </div>
+
+                    <div class="halaqaFoot">
+                      <span>#<?php echo (int)$hrow['id']; ?></span>
+                      <span><?php echo h($tr['session']); ?>: <?php echo h($sess === 'asr' ? $tr['asr'] : $tr['subah']); ?></span>
+                    </div>
                   </div>
-
-                  <div class="halaqaMeta">
-                    <span class="badge <?php echo $h['gender']==='boys' ? 'boy' : 'girl'; ?>">
-                      <?php echo htmlspecialchars($h['gender']==='boys' ? $tr['boys'] : $tr['girls']); ?>
-                    </span>
-
-                    <!-- ✅ session badge -->
-                    <span class="badge secondary">
-                      <?php echo htmlspecialchars(($h['session'] ?? 'subah') === 'asr' ? $tr['asr'] : $tr['subah']); ?>
-                    </span>
-
-                    <span class="badge primary"><?php echo (int)$h['count']; ?></span>
-                  </div>
-
-                  <div class="halaqaFoot">
-                    <span><?php echo htmlspecialchars($lang==='ur' ? $h['ustaaz_ur'] : $h['ustaaz_en']); ?></span>
-                    <span><?php echo htmlspecialchars($tr['sample']); ?></span>
-                  </div>
-                </div>
-              <?php endforeach; ?>
-            </div>
+                <?php endforeach; ?>
+              </div>
+            <?php endif; ?>
           </div>
         </div>
 
@@ -824,16 +809,16 @@ html[lang="en"] .hero p{
         <div style="display:flex; flex-direction:column; gap:12px;">
           <div class="card">
             <div class="cardHeader">
-              <span><?php echo htmlspecialchars($tr['section_upcoming']); ?></span>
-              <span class="badge secondary"><?php echo htmlspecialchars($tr['view_all']); ?></span>
+              <span><?php echo h($tr['section_upcoming']); ?></span>
+              <span class="badge secondary"><?php echo h($tr['view_all']); ?></span>
             </div>
             <div class="cardBody">
               <div class="list">
                 <div class="row">
                   <div class="left">
-                    <div class="title">2026-02-05 — Exam</div>
+                    <div class="title">2026-02-05</div>
                     <div class="meta">
-                      <span class="badge primary"><?php echo htmlspecialchars($tr['boys']); ?></span>
+                      <span class="badge primary"><?php echo h($tr['boys']); ?></span>
                       <span class="badge secondary">10:00</span>
                     </div>
                   </div>
@@ -842,9 +827,9 @@ html[lang="en"] .hero p{
 
                 <div class="row">
                   <div class="left">
-                    <div class="title">2026-02-08 — Exam</div>
+                    <div class="title">2026-02-08</div>
                     <div class="meta">
-                      <span class="badge primary"><?php echo htmlspecialchars($tr['girls']); ?></span>
+                      <span class="badge primary"><?php echo h($tr['girls']); ?></span>
                       <span class="badge secondary">11:00</span>
                     </div>
                   </div>
@@ -856,21 +841,21 @@ html[lang="en"] .hero p{
 
           <div class="card">
             <div class="cardHeader">
-              <span><?php echo htmlspecialchars($tr['section_gender']); ?></span>
+              <span><?php echo h($tr['section_gender']); ?></span>
             </div>
             <div class="cardBody">
               <div class="list">
                 <div class="row">
                   <div class="left">
-                    <div class="title"><?php echo htmlspecialchars($tr['boys']); ?></div>
-                    <div class="meta"><span class="badge boy"><?php echo htmlspecialchars($tr['sample']); ?></span></div>
+                    <div class="title"><?php echo h($tr['boys']); ?></div>
+                    <div class="meta"><span class="badge boy">Live</span></div>
                   </div>
                   <span class="badge boy"><?php echo (int)$stats['boys']; ?></span>
                 </div>
                 <div class="row">
                   <div class="left">
-                    <div class="title"><?php echo htmlspecialchars($tr['girls']); ?></div>
-                    <div class="meta"><span class="badge girl"><?php echo htmlspecialchars($tr['sample']); ?></span></div>
+                    <div class="title"><?php echo h($tr['girls']); ?></div>
+                    <div class="meta"><span class="badge girl">Live</span></div>
                   </div>
                   <span class="badge girl"><?php echo (int)$stats['girls']; ?></span>
                 </div>
@@ -880,7 +865,7 @@ html[lang="en"] .hero p{
 
           <div class="card">
             <div class="cardHeader">
-              <span><?php echo htmlspecialchars($tr['section_top_students']); ?></span>
+              <span><?php echo h($tr['section_top_students']); ?></span>
             </div>
             <div class="cardBody">
               <div class="list">
@@ -888,10 +873,7 @@ html[lang="en"] .hero p{
                   <div class="row">
                     <div class="left">
                       <div class="title">
-                        <?php echo htmlspecialchars(($i+1) . '. ' . ($lang==='ur' ? $s['name_ur'] : $s['name_en'])); ?>
-                      </div>
-                      <div class="meta">
-                        <span class="badge secondary"><?php echo htmlspecialchars($tr['sample']); ?></span>
+                        <?php echo h(($i+1) . '. ' . ($lang==='ur' ? $s['name_ur'] : $s['name_en'])); ?>
                       </div>
                     </div>
                     <span class="badge primary"><?php echo (int)$s['score']; ?>/100</span>
@@ -908,7 +890,9 @@ html[lang="en"] .hero p{
   </div>
 
  <script>
-  function isMobile() { return window.innerWidth <= 980; }
+  function isMobile() {
+    return window.innerWidth <= 980;
+  }
 
   function toggleSidebar(forceOpen) {
     var sb = document.getElementById('sidebar');

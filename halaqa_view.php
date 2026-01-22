@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'add_s
         $err = $tr['err_script'];
     } else {
         // B1: Online API -> English
-        $full_name_en = translate_to_english_b1($full_name_ur);
+$full_name_en = transliterate_to_english_b1($full_name_ur);
 
         // Safety fallback: DB requires full_name_en NOT NULL
         if ($full_name_en === '') {

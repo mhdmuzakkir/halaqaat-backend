@@ -133,7 +133,8 @@ body{
       overflow:hidden;
     }
 .header{
-  padding:28px 22px;
+  font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;  
+padding:28px 22px;
   background: var(--primary); /* GREEN */
   display:flex;
   align-items:center;
@@ -148,6 +149,8 @@ body{
       gap:2px;
     }
 .brand .app{
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+
   font-weight:900;
   letter-spacing:.6px;
   color:#ffffff;        /* WHITE on green */
@@ -155,7 +158,8 @@ body{
 }
 
 .brand .title{
-  margin-top:4px;
+  font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+margin-top:4px;
   font-weight:700;
   color:rgba(255,255,255,0.9);
   font-size:14px;
@@ -168,6 +172,7 @@ body{
       align-items:center;
     }
 .lang a{
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
   text-decoration:none;
   font-weight:800;
   font-size:13px;
@@ -205,12 +210,15 @@ body{
       font-size:13px;
     }
     label{
+          font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       display:block;
       font-weight:800;
       margin:10px 0 6px;
       font-size:13px;
     }
     input{
+          font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+
       width:100%;
       padding:11px 12px;
       border:1px solid var(--border);

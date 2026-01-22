@@ -120,21 +120,35 @@ function is_girl_group($g) {
  * https://api.mymemory.translated.net/get?q=...&langpair=auto|en
  * If API fails, returns empty string.
  */
-function translate_to_english_b1($text) {
+function transliterate_to_english_b1($text) {
     $text = trim((string)$text);
     if ($text === '') return '';
 
-    $url = "https://api.mymemory.translated.net/get?q=" . rawurlencode($text) . "&langpair=auto|en";
+    // Put these in db.php or config.php ideally
+    $key    = defined('AZURE_TRANSLATOR_KEY') ? AZURE_TRANSLATOR_KEY : '';
+    $region = defined('AZURE_TRANSLATOR_REGION') ? AZURE_TRANSLATOR_REGION : '';
+    $ep     = defined('AZURE_TRANSLATOR_ENDPOINT') ? AZURE_TRANSLATOR_ENDPOINT : 'https://api.cognitive.microsofttranslator.com';
+
+    if ($key === '' || $region === '') return '';
+
+    $url = rtrim($ep, '/') . "/transliterate?api-version=3.0&language=ar&fromScript=Arab&toScript=Latn";
+
+    $body = json_encode([['Text' => $text]], JSON_UNESCAPED_UNICODE);
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
+        CURLOPT_POST => true,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 6,
         CURLOPT_CONNECTTIMEOUT => 4,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_USERAGENT => "KahafHalaqat/1.0 (+halaqa_view.php)"
+        CURLOPT_HTTPHEADER => [
+            "Content-Type: application/json",
+            "Ocp-Apim-Subscription-Key: {$key}",
+            "Ocp-Apim-Subscription-Region: {$region}",
+        ],
+        CURLOPT_POSTFIELDS => $body,
     ]);
+
     $resp = curl_exec($ch);
     $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
@@ -144,12 +158,11 @@ function translate_to_english_b1($text) {
     $data = json_decode($resp, true);
     if (!is_array($data)) return '';
 
-    $out = trim((string)($data['responseData']['translatedText'] ?? ''));
-    // Some APIs return HTML entities sometimes; decode safely
-    if ($out !== '') $out = html_entity_decode($out, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-
+    // Response shape: [ { "text": "...", "script": "...", "translations":[{"text":"...","script":"Latn"}] } ]
+    $out = trim((string)($data[0]['translations'][0]['text'] ?? ''));
     return $out;
 }
+
 
 /**
  * Validate Urdu/Arabic input:

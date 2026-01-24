@@ -244,25 +244,25 @@ if ($f_session !== '' && !in_array($f_session, ['subah', 'asr'], true)) $f_sessi
 $where = [];
 $params = [];
 $types = '';
-    if ($f_gender !== '') {
-      if ($f_gender === 'boy') {
-        $where[] = "(LOWER(COALESCE(h.gender,'')) IN ('boy','boys','male','m','baneen','b') OR h.gender IN ('بنین','بنين'))";
-      } else { // girl
-        $where[] = "(LOWER(COALESCE(h.gender,'')) IN ('girl','girls','female','f','banaat','g') OR h.gender IN ('بنات'))";
-      }
-    }
+if ($f_gender !== '') {
+  if ($f_gender === 'boy') {
+    $where[] = "(LOWER(COALESCE(h.gender,'')) IN ('boy','boys','male','m','baneen','b') OR h.gender IN ('بنین','بنين'))";
+  } else { // girl
+    $where[] = "(LOWER(COALESCE(h.gender,'')) IN ('girl','girls','female','f','banaat','g') OR h.gender IN ('بنات'))";
+  }
+}
 
-    if ($f_session !== '') {
-      if ($f_session === 'subah') {
-        $where[] = "(LOWER(COALESCE(h.session,'')) IN ('subah','morning','am','a.m.','fajr') OR h.session IN ('صبح','صباح'))";
-      } else { // asr
-        $where[] = "(LOWER(COALESCE(h.session,'')) IN ('asr','evening','pm','p.m.','asar') OR h.session IN ('عصر','شام'))";
-      }
-    }
+if ($f_session !== '') {
+  if ($f_session === 'subah') {
+    $where[] = "(LOWER(COALESCE(h.session,'')) IN ('subah','morning','am','a.m.','fajr') OR h.session IN ('صبح','صباح'))";
+  } else { // asr
+    $where[] = "(LOWER(COALESCE(h.session,'')) IN ('asr','evening','pm','p.m.','asar') OR h.session IN ('عصر','شام'))";
+  }
+}
 
 
 
-    $whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
+$whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
 
 $orderSql = "ORDER BY h.id DESC";
 
@@ -330,8 +330,8 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
     }
 
     :root {
-      --primary: #3e846a;
-      --secondary: #b18f6e;
+      --primary: #132533;
+      --secondary: #a7815c;
       --accent: #444444;
       --bg: #f6f2ee;
       --card: #ffffff;

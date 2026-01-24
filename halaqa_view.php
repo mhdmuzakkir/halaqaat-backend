@@ -409,7 +409,7 @@ function removed_type_label($t, $tr)
 
     :root {
       --primary: #3e846a;
-      --secondary: #b18f6e;
+      --secondary: #aa815e;
       --accent: #444444;
       --bg: #f6f2ee;
       --card: #ffffff;

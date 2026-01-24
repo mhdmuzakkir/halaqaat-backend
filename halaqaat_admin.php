@@ -331,7 +331,7 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
 
     :root {
       --primary: #132533;
-      --secondary: #a7815c;
+      --secondary: #aa815e;
       --accent: #444444;
       --bg: #f6f2ee;
       --card: #ffffff;

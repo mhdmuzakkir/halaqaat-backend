@@ -8,7 +8,7 @@ define('DB_USER', 'mdmunazir_linuxproguru');
 define('DB_PASS', 'Vikhara@548');
 
 // App settings
-define('APP_NAME', 'Kahaf Halaqat');
+define('APP_NAME', 'کہف حلقات');
 define('APP_DEBUG', true);
 
 // Session settings

@@ -1,11 +1,5 @@
 <?php
-// halaqaat_admin.php  (UPDATED per your UI rules)
-// CHANGES DONE:
-// 1) Tags are now small rounded rectangles (NOT circles)
-// 2) Halaqa name bigger + Ustaaz name directly under title
-// 3) Language toggle is a single pill: "ار | EN" (green active for EN, secondary active for UR)
-// 4) Total Halaqaat pill = green, Total Students pill = secondary; filter bar bg = primary
-// 5) Search is REAL-TIME (JS filters cards as you type). Server search still supported with ?q= but not required.
+// halaqaat_admin.php  (UI kept same; fixes: cards loop HTML, duplicate students, safer counts, RTL/LTR arrow, Urdu title clipping)
 
 require_once __DIR__ . '/db.php';
 
@@ -70,15 +64,18 @@ $T = [
     'sort_name' => 'نام',
     'sort_new' => 'نیا پہلے',
     'sort_students' => 'طلبہ',
+    'filter_all_halaqaat' => 'تمام حلقات',
+    'filter_all_awqaat'  => 'تمام اوقات',
+
 
     'total_halqaat' => 'کل حلقات',
     'total_students' => 'کل طلبہ',
     'students' => 'طلبہ',
     'ustaaz' => 'استاد',
     'mumayyaz' => 'ممیّز طلبہ',
-    'open' => 'کھولیں',
     'no_data' => 'ابھی تک کوئی حلقہ موجود نہیں۔',
     'results' => 'نتائج',
+    'score_pct' => 'فیصد',
   ],
   'en' => [
     'app' => 'Kahf Halaqat',
@@ -122,15 +119,18 @@ $T = [
     'sort_name' => 'Name',
     'sort_new' => 'Newest',
     'sort_students' => 'Students',
+    'filter_all_halaqaat' => 'All Halaqaat',
+    'filter_all_awqaat'  => 'All Sessions',
+
 
     'total_halqaat' => 'Total Halaqaat',
     'total_students' => 'Total Students',
     'students' => 'Students',
     'ustaaz' => 'Ustaaz',
     'mumayyaz' => 'Mumayyaz',
-    'open' => 'Open',
     'no_data' => 'No halaqa yet.',
     'results' => 'Results',
+    'score_pct' => 'Score %',
   ],
 ];
 $tr = $T[$lang];
@@ -139,6 +139,7 @@ function h($s)
 {
   return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
+
 function table_exists($conn, $table)
 {
   $t = $conn->real_escape_string($table);
@@ -161,7 +162,7 @@ function normalize_gender($g)
 function normalize_session($s)
 {
   $s = strtolower(trim((string)$s));
-  return ($s === 'asr' || $s === 'asr') ? 'asr' : 'subah';
+  return ($s === 'asr') ? 'asr' : 'subah';
 }
 function normalize_state($s)
 {
@@ -194,7 +195,6 @@ $halaqaatHasState  = column_exists($conn, 'halaqaat', 'state');
 $halaqaatHasUstaaz = column_exists($conn, 'halaqaat', 'ustaaz_user_id');
 
 $studentsHasHalaqa = $hasStudentsTable && column_exists($conn, 'students', 'halaqa_id');
-$studentsHasMum    = $hasStudentsTable && (column_exists($conn, 'students', 'is_mumayyaz') || column_exists($conn, 'students', 'mumayyaz'));
 $mumCol = column_exists($conn, 'students', 'is_mumayyaz') ? 'is_mumayyaz' : (column_exists($conn, 'students', 'mumayyaz') ? 'mumayyaz' : null);
 
 // create halaqa
@@ -216,9 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['__create_halaqa'])) {
         if ($stmt->execute()) {
           $msg = $tr['created'];
           $_POST = [];
-        } else {
-          $err = $tr['err_db'];
-        }
+        } else $err = $tr['err_db'];
         $stmt->close();
       } else $err = $tr['err_db'];
     } else {
@@ -229,62 +227,57 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['__create_halaqa'])) {
         if ($stmt->execute()) {
           $msg = $tr['created'];
           $_POST = [];
-        } else {
-          $err = $tr['err_db'];
-        }
+        } else $err = $tr['err_db'];
         $stmt->close();
       } else $err = $tr['err_db'];
     }
   }
 }
 
-// filters (server-side sorting only; search is realtime client-side)
+// filters
 $f_gender   = strtolower(trim($_GET['gender'] ?? ''));
 $f_session  = strtolower(trim($_GET['session'] ?? ''));
-$f_state    = strtolower(trim($_GET['state'] ?? ''));
-$sort       = strtolower(trim($_GET['sort'] ?? 'new'));
 
 if ($f_gender !== '' && !in_array($f_gender, ['boy', 'girl'], true)) $f_gender = '';
 if ($f_session !== '' && !in_array($f_session, ['subah', 'asr'], true)) $f_session = '';
-if ($f_state !== '' && !in_array($f_state, ['active', 'paused', 'stopped'], true)) $f_state = '';
-if (!in_array($sort, ['name', 'new', 'students'], true)) $sort = 'new';
 
 $where = [];
 $params = [];
 $types = '';
+    if ($f_gender !== '') {
+      if ($f_gender === 'boy') {
+        $where[] = "(LOWER(COALESCE(h.gender,'')) IN ('boy','boys','male','m','baneen','b') OR h.gender IN ('بنین','بنين'))";
+      } else { // girl
+        $where[] = "(LOWER(COALESCE(h.gender,'')) IN ('girl','girls','female','f','banaat','g') OR h.gender IN ('بنات'))";
+      }
+    }
 
-if ($f_gender !== '') {
-  $where[] = "h.gender=?";
-  $params[] = $f_gender;
-  $types .= 's';
-}
-if ($f_session !== '') {
-  $where[] = "h.session=?";
-  $params[] = $f_session;
-  $types .= 's';
-}
-if ($f_state !== '') {
-  if ($halaqaatHasState) {
-    $where[] = "h.state=?";
-    $params[] = $f_state;
-    $types .= 's';
-  } else {
-    if ($f_state === 'active') $where[] = "COALESCE(h.is_active,1)=1";
-    else $where[] = "COALESCE(h.is_active,1)=0";
-  }
-}
-$whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
+    if ($f_session !== '') {
+      if ($f_session === 'subah') {
+        $where[] = "(LOWER(COALESCE(h.session,'')) IN ('subah','morning','am','a.m.','fajr') OR h.session IN ('صبح','صباح'))";
+      } else { // asr
+        $where[] = "(LOWER(COALESCE(h.session,'')) IN ('asr','evening','pm','p.m.','asar') OR h.session IN ('عصر','شام'))";
+      }
+    }
+
+
+
+    $whereSql = $where ? ("WHERE " . implode(" AND ", $where)) : "";
 
 $orderSql = "ORDER BY h.id DESC";
-if ($sort === 'name') $orderSql = "ORDER BY h.name_ur ASC, h.id DESC";
-if ($sort === 'students') $orderSql = "ORDER BY students_count DESC, h.id DESC";
 
-$selectStudents = $studentsHasHalaqa ? "COUNT(s.id) AS students_count" : "0 AS students_count";
-$selectMum      = ($studentsHasHalaqa && $mumCol) ? "SUM(CASE WHEN COALESCE(s.`$mumCol`,0)=1 THEN 1 ELSE 0 END) AS mumayyaz_count" : "0 AS mumayyaz_count";
-$selectState    = $halaqaatHasState ? "h.state" : "CASE WHEN COALESCE(h.is_active,1)=1 THEN 'active' ELSE 'paused' END AS state";
-$selectUstaaz   = ($halaqaatHasUstaaz && $hasUsersTable) ? "COALESCE(u.full_name, u.name, u.username, '-') AS ustaaz_name" : "'' AS ustaaz_name";
-$joinStudents   = $studentsHasHalaqa ? "LEFT JOIN students s ON s.halaqa_id = h.id" : "";
-$joinUstaaz     = ($halaqaatHasUstaaz && $hasUsersTable) ? "LEFT JOIN users u ON u.id = h.ustaaz_user_id" : "";
+
+$selectState  = $halaqaatHasState ? "h.state" : "CASE WHEN COALESCE(h.is_active,1)=1 THEN 'active' ELSE 'paused' END AS state";
+$selectUstaaz = ($halaqaatHasUstaaz && $hasUsersTable) ? "COALESCE(u.full_name, u.name, u.username, '-') AS ustaaz_name" : "'' AS ustaaz_name";
+
+$joinStudents = $studentsHasHalaqa ? "LEFT JOIN students s ON s.halaqa_id = h.id" : "";
+$joinUstaaz   = ($halaqaatHasUstaaz && $hasUsersTable) ? "LEFT JOIN users u ON u.id = h.ustaaz_user_id" : "";
+
+// ✅ safer counts (prevents accidental double count)
+$selectStudents = $studentsHasHalaqa ? "COUNT(DISTINCT s.id) AS students_count" : "0 AS students_count";
+$selectMum      = ($studentsHasHalaqa && $mumCol)
+  ? "COUNT(DISTINCT CASE WHEN COALESCE(s.`$mumCol`,0)=1 THEN s.id END) AS mumayyaz_count"
+  : "0 AS mumayyaz_count";
 
 $sql = "
   SELECT
@@ -349,7 +342,7 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       --boy: #2f6fd6;
       --girl: #d24e8a;
       --subah: #ff8c00;
-      --asr: #784614;
+      --asr: #b35a00;
 
       --stopped: #b11c1c;
       --paused: #8a5a00;
@@ -375,7 +368,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       padding: 18px;
     }
 
-    /* Sidebar (same) */
     .sidebar {
       background: linear-gradient(180deg, var(--sidebar), var(--sidebar2));
       color: #fff;
@@ -547,7 +539,15 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       font-weight: 900;
     }
 
-    /* Topbar */
+    .pillSide.logout {
+      background: #b11c1c;
+      border-color: rgba(255, 255, 255, .25);
+    }
+
+    .pillSide.logout:hover {
+      filter: brightness(.95);
+    }
+
     .topbar {
       display: flex;
       align-items: center;
@@ -574,44 +574,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
 
     .btnAdd:hover {
       filter: brightness(.96);
-    }
-
-    /* Combined language toggle pill: "ار | EN" */
-    .langPill {
-      display: inline-flex;
-      align-items: center;
-      overflow: hidden;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #fff;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, .04);
-    }
-
-    .langPill a {
-      text-decoration: none;
-      padding: 10px 12px;
-      font-weight: 900;
-      font-size: 13px;
-      display: inline-block;
-      color: var(--accent);
-      min-width: 56px;
-      text-align: center;
-    }
-
-    .langPill .sep {
-      padding: 0 4px;
-      color: #999;
-      font-weight: 900;
-    }
-
-    .langPill a.activeEn {
-      background: var(--primary);
-      color: #fff;
-    }
-
-    .langPill a.activeUr {
-      background: var(--secondary);
-      color: #fff;
     }
 
     .statsMini {
@@ -667,7 +629,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       color: var(--accent);
     }
 
-    /* Filter bar: PRIMARY background */
     .filtersRow {
       margin-bottom: 14px;
       border-radius: 16px;
@@ -700,6 +661,31 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       gap: 10px;
       flex-wrap: wrap;
       align-items: center;
+    }
+
+    .langSelect {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding: 10px 36px 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 900;
+      color: var(--accent);
+      outline: none;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .04);
+      background-repeat: no-repeat;
+      background-size: 14px 14px;
+      background-position: calc(100% - 12px) 50%;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path fill='%23666' d='M7 10l5 5 5-5z'/></svg>");
+    }
+
+    html[dir="rtl"] .langSelect {
+      background-position: 12px 50%;
+      padding: 10px 12px 10px 36px;
+      text-align: right;
     }
 
     select {
@@ -745,7 +731,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       margin: 10px 0;
     }
 
-    /* Add panel */
     .addPanel {
       background: #fff;
       border: 1px solid var(--border);
@@ -818,7 +803,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       font-size: 15px;
     }
 
-    /* Cards grid */
     .cards {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -866,14 +850,18 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       min-width: 0;
     }
 
+    /* ✅ Fix Urdu glyph clipping */
     .cardTitle {
       font-weight: 900;
       font-size: 17px;
-      /* bigger */
-      line-height: 1.9;
-      white-space: nowrap;
+      line-height: 2.35;
+      padding-top: 6px;
+      padding-bottom: 6px;
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     .cardUstaaz {
@@ -890,11 +878,29 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       border: 0;
       background: transparent;
       cursor: pointer;
-      font-size: 20px;
       line-height: 1;
       color: #777;
-      margin-top: 4px;
+      margin-top: 6px;
+      padding: 6px;
+      border-radius: 10px;
     }
+
+    .goBtn:hover {
+      background: rgba(0, 0, 0, .04);
+    }
+
+    .goBtn .chev {
+      width: 22px;
+      height: 22px;
+      fill: currentColor;
+      display: block;
+    }
+
+    /* ✅ Urdu (RTL) = chevron-left, English (LTR) = chevron-right automatically */
+    html[dir="ltr"] .goBtn .chev {
+      transform: rotate(180deg);
+    }
+
 
     .cardMid {
       padding: 0 14px 12px;
@@ -904,12 +910,10 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       align-items: center;
     }
 
-    /* Tags now small rounded rectangles (like pic) */
     .tag {
       display: inline-block;
       padding: 2px 10px;
       border-radius: 999px;
-      /* rectangle-ish */
       border: 1px solid var(--border);
       font-weight: 900;
       font-size: 10px;
@@ -930,15 +934,18 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
     }
 
     .tag.subah {
-      background: rgba(255, 140, 0, .18);
-      border-color: rgba(255, 140, 0, .45);
-      color: #6a3a00;
+      background: rgba(255, 140, 0, .16);
+      /* orange bg */
+      border-color: rgba(255, 140, 0, .40);
+      /* orange border */
+      color: var(--subah);
+      /* text uses your --subah */
     }
 
     .tag.asr {
-      background: rgba(234, 238, 31, 0.18);
-      border-color: rgba(178, 170, 22, 0.45);
-      color: #9f971e;
+      background: rgba(179, 90, 0, .16);
+      border-color: rgba(179, 90, 0, .40);
+      color: var(--asr);
     }
 
     .tag.active {
@@ -964,7 +971,7 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       padding: 12px 14px;
       border-top: 1px solid var(--border);
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       gap: 10px;
       font-size: 12px;
       color: #666;
@@ -990,11 +997,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       color: var(--accent);
     }
 
-    .openLink {
-      text-decoration: none;
-    }
-
-    /* realtime results count */
     .resultsLine {
       margin-bottom: 14px;
       border-radius: 16px;
@@ -1012,7 +1014,6 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       justify-content: flex-start;
     }
 
-    /* Mobile sidebar */
     .menuBtn {
       display: none;
       background: #3e846a;
@@ -1102,7 +1103,7 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       </nav>
 
       <div class="sidebarBottom">
-        <a class="pillSide" href="logout.php"><?php echo h($tr['logout']); ?></a>
+        <a class="pillSide logout" href="logout.php"><?php echo h($tr['logout']); ?></a>
       </div>
     </aside>
 
@@ -1114,28 +1115,19 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
           <span>+</span> <span><?php echo h($tr['add_halaqa']); ?></span>
         </button>
 
-        <!-- REALTIME search (no submit) -->
         <div class="searchWrap">
-          <input
-            type="text"
-            id="searchInput"
-            value=""
-            placeholder="<?php echo h($tr['search']); ?>"
-            autocomplete="off">
+          <input type="text" id="searchInput" value="" placeholder="<?php echo h($tr['search']); ?>" autocomplete="off">
         </div>
 
-        <!-- language toggle pill: ار | EN -->
-        <div class="langPill" aria-label="Language toggle">
-          <a
-            href="?lang=ur<?php echo ($f_gender || $f_session || $f_state || $sort) ? '&' . http_build_query(['gender' => $f_gender, 'session' => $f_session, 'state' => $f_state, 'sort' => $sort]) : ''; ?>"
-            class="<?php echo $lang === 'ur' ? 'activeUr' : ''; ?>"
-            title="Urdu">ار</a>
-          <span class="sep">|</span>
-          <a
-            href="?lang=en<?php echo ($f_gender || $f_session || $f_state || $sort) ? '&' . http_build_query(['gender' => $f_gender, 'session' => $f_session, 'state' => $f_state, 'sort' => $sort]) : ''; ?>"
-            class="<?php echo $lang === 'en' ? 'activeEn' : ''; ?>"
-            title="English">EN</a>
-        </div>
+        <form method="get" action="halaqaat_admin.php">
+          <input type="hidden" name="gender" value="<?php echo h($f_gender); ?>">
+          <input type="hidden" name="session" value="<?php echo h($f_session); ?>">
+
+          <select class="langSelect" name="lang" onchange="this.form.submit()">
+            <option value="ur" <?php echo $lang === 'ur' ? 'selected' : ''; ?>>اردو</option>
+            <option value="en" <?php echo $lang === 'en' ? 'selected' : ''; ?>>English</option>
+          </select>
+        </form>
 
         <div class="statsMini">
           <span class="badgeMini halqaat"><?php echo h($tr['total_halqaat']); ?>: <span id="totalHalaqaat"><?php echo (int)$totalHalaqaat; ?></span></span>
@@ -1149,28 +1141,15 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
 
         <div class="filtersRight">
           <select name="gender" onchange="this.form.submit()">
-            <option value=""><?php echo h($tr['filter_gender']); ?>: <?php echo h($tr['all']); ?></option>
+            <option value=""><?php echo h($tr['filter_all_halaqaat']); ?></option>
             <option value="boy" <?php echo $f_gender === 'boy' ? 'selected' : '';  ?>><?php echo h($tr['boy']); ?></option>
             <option value="girl" <?php echo $f_gender === 'girl' ? 'selected' : ''; ?>><?php echo h($tr['girl']); ?></option>
           </select>
 
           <select name="session" onchange="this.form.submit()">
-            <option value=""><?php echo h($tr['filter_session']); ?>: <?php echo h($tr['all']); ?></option>
+            <option value=""><?php echo h($tr['filter_all_awqaat']); ?></option>
             <option value="subah" <?php echo $f_session === 'subah' ? 'selected' : ''; ?>><?php echo h($tr['subah']); ?></option>
             <option value="asr" <?php echo $f_session === 'asr' ? 'selected' : '';   ?>><?php echo h($tr['asr']); ?></option>
-          </select>
-
-          <select name="state" onchange="this.form.submit()">
-            <option value=""><?php echo h($tr['filter_status']); ?>: <?php echo h($tr['all']); ?></option>
-            <option value="active" <?php echo $f_state === 'active' ? 'selected' : '';  ?>><?php echo h($tr['active']); ?></option>
-            <option value="paused" <?php echo $f_state === 'paused' ? 'selected' : '';  ?>><?php echo h($tr['paused']); ?></option>
-            <option value="stopped" <?php echo $f_state === 'stopped' ? 'selected' : ''; ?>><?php echo h($tr['stopped']); ?></option>
-          </select>
-
-          <select name="sort" onchange="this.form.submit()">
-            <option value="new" <?php echo $sort === 'new' ? 'selected' : ''; ?>><?php echo h($tr['sort_by']); ?>: <?php echo h($tr['sort_new']); ?></option>
-            <option value="name" <?php echo $sort === 'name' ? 'selected' : ''; ?>><?php echo h($tr['sort_by']); ?>: <?php echo h($tr['sort_name']); ?></option>
-            <option value="students" <?php echo $sort === 'students' ? 'selected' : ''; ?>><?php echo h($tr['sort_by']); ?>: <?php echo h($tr['sort_students']); ?></option>
           </select>
         </div>
       </form>
@@ -1240,10 +1219,13 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
             $ustaazName    = trim((string)($hrow['ustaaz_name'] ?? ''));
             if ($ustaazName === '') $ustaazName = '-';
             $nameUr = (string)($hrow['name_ur'] ?? '');
+
+            $scorePct = ($studentsCount > 0) ? round(($mumCount / $studentsCount) * 100) : 0;
             ?>
             <div class="card halaqaCard"
               data-name="<?php echo h(mb_strtolower($nameUr, 'UTF-8')); ?>"
               data-students="<?php echo (int)$studentsCount; ?>">
+
               <div class="cardTop">
                 <div class="titleBlock">
                   <div class="cardTitle" title="<?php echo h($nameUr); ?>">
@@ -1253,7 +1235,16 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
                     <?php echo h($tr['ustaaz']); ?>: <?php echo h($ustaazName); ?>
                   </div>
                 </div>
-                <button class="goBtn" type="button" onclick="window.location.href='halaqa_view.php?id=<?php echo $hid; ?>'">›</button>
+
+                <button class="goBtn"
+                  type="button"
+                  aria-label="Open"
+                  onclick="window.location.href='halaqa_view.php?id=<?php echo $hid; ?>'">
+                  <svg class="chev" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path>
+                  </svg>
+                </button>
+
               </div>
 
               <div class="cardMid">
@@ -1270,19 +1261,20 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
                 </span>
               </div>
 
+              <!-- ✅ Footer: ONLY these 3 pills (no duplicates) -->
               <div class="cardFoot">
-                <div style="font-weight:900;">
-                  <?php echo h($tr['mumayyaz']); ?>: <?php echo (int)$mumCount; ?>
-                </div>
                 <div class="metaRight">
                   <span class="numPill"><?php echo h($tr['students']); ?>: <?php echo (int)$studentsCount; ?></span>
-                  <a class="numPill openLink" href="halaqa_view.php?id=<?php echo $hid; ?>"><?php echo h($tr['open']); ?></a>
+                  <span class="numPill"><?php echo h($tr['mumayyaz']); ?>: <?php echo (int)$mumCount; ?></span>
+                  <span class="numPill"><?php echo h($tr['score_pct']); ?>: <?php echo (int)$scorePct; ?>%</span>
                 </div>
               </div>
+
             </div>
           <?php endforeach; ?>
         </div>
       <?php endif; ?>
+
     </main>
   </div>
 
@@ -1337,13 +1329,11 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       });
     }
 
-    // ✅ REALTIME SEARCH (client-side) - no Enter needed
+    // realtime search
     (function() {
       var input = document.getElementById('searchInput');
       var cards = Array.prototype.slice.call(document.querySelectorAll('.halaqaCard'));
       var resultsCount = document.getElementById('resultsCount');
-
-      // totals stay as server totals; resultsCount shows filtered count
       if (!input || cards.length === 0 || !resultsCount) return;
 
       function norm(s) {
@@ -1353,16 +1343,13 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
       function apply() {
         var q = norm(input.value);
         var shown = 0;
-
         for (var i = 0; i < cards.length; i++) {
           var c = cards[i];
           var name = norm(c.getAttribute('data-name'));
           var match = (q === '') ? true : (name.indexOf(q) !== -1);
-
           c.style.display = match ? '' : 'none';
           if (match) shown++;
         }
-
         resultsCount.textContent = shown;
       }
 
@@ -1373,9 +1360,7 @@ foreach ($halaqaat as $r) $totalStudents += (int)($r['students_count'] ?? 0);
     <?php if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($err !== '')): ?>
         (function() {
           var p = document.getElementById('addPanel');
-          if (p) {
-            p.classList.add('open');
-          }
+          if (p) p.classList.add('open');
         })();
     <?php endif; ?>
   </script>

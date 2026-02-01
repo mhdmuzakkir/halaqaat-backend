@@ -408,7 +408,7 @@ function removed_type_label($t, $tr)
     }
 
     :root {
-      --primary: #3e846a;
+      --primary: #0f2d3d;
       --secondary: #aa815e;
       --accent: #444444;
       --bg: #f6f2ee;
@@ -835,7 +835,7 @@ function removed_type_label($t, $tr)
     /* Mobile sidebar */
     .menuBtn {
       display: none;
-      background: #3e846a;
+      background: var(--primary);
       border: 1px solid rgba(255, 255, 255, .6);
       color: #ffffff;
       padding: 10px 12px;

@@ -2,9 +2,9 @@
 session_start();
 
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'kahaf_halaqaat');
+define('DB_NAME', 'mdmunazir_linuxproguru');
+define('DB_USER', 'mdmunazir_linuxproguru');
+define('DB_PASS', 'Vikhara@548');
 
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 if ($conn->connect_error) {

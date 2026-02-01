@@ -24,14 +24,14 @@ if (isset($_GET['lang']) && in_array($_GET['lang'], $allowedLang, true)) {
   $_SESSION['lang'] = $_GET['lang'];
 }
 $lang = $_SESSION['lang'] ?? 'ur';
+$isRtl = ($lang === 'ur');
 
 $T = [
   'ur' => [
     'app' => 'کہف حلقات',
     'dashboard' => 'ڈیش بورڈ',
+    'greet' => 'السلام عليكم ورحمة الله وبركاته',
     'search' => 'تلاش کریں...',
-    'welcome' => 'السلام علیکم!',
-    'welcome_sub' => 'کہف حلقات سسٹم میں خوش آمدید',
     'nav_dashboard' => 'ڈیش بورڈ',
     'nav_halqaat' => 'حلقات',
     'nav_students' => 'طلباء',
@@ -43,36 +43,40 @@ $T = [
     'switch_en' => 'English',
     'switch_ur' => 'اردو',
 
-    'stat_total_halqaat' => 'کل حلقات',
-    'stat_total_students' => 'کل طلباء',
-    'stat_total_ustaaz' => 'اساتذہ',
-    'stat_upcoming_exams' => 'آنے والے امتحانات',
+    'total_halqaat' => 'کل حلقات',
+    'total_students' => 'کل طلبہ',
+    'total_mumayyaz' => 'کل ممیّزین',
 
-    'section_upcoming' => 'آنے والے امتحانات',
-    'section_gender' => 'جنـس کے مطابق',
-    'section_recent_halqaat' => 'حلقات (تازہ)',
-    'section_top_students' => 'امتیاز طلباء (نمونہ)',
+    'students_by_shuba' => 'طلبہ (شعبہ کے مطابق)',
+    'students_by_gender' => 'طلبہ (جنس کے مطابق)',
+    'students_by_session' => 'طلبہ (اوقات کے مطابق)',
 
     'boys' => 'طلباء',
     'girls' => 'طالبات',
-
-    // NEW RULES: session only
-    'session' => 'سیشن',
     'subah' => 'صبح',
     'asr' => 'عصر',
 
-    'active' => 'فعال',
-    'inactive' => 'غیر فعال',
+    'halaqaat' => 'حلقات',
+    'top_halaqa_girls' => 'سب سے زیادہ فیصد (بنات)',
+    'top_halaqa_boys_subah' => 'سب سے زیادہ فیصد (بنین — صبح)',
+    'top_halaqa_boys_asr' => 'سب سے زیادہ فیصد (بنین — عصر)',
 
+    'mumtaaz_talaba' => 'ممتاز طالب علم',
+    'score' => 'اسکور',
+    'pct' => 'فیصد',
+    'students' => 'طلبہ',
+    'mumayyaz' => 'ممیّز',
+
+    'no_data' => 'ڈیٹا موجود نہیں',
+    'no_shuba' => 'شعبہ کا ڈیٹا موجود نہیں',
+    'no_results' => 'نتائج کا ڈیٹا موجود نہیں',
     'view_all' => 'سب دیکھیں',
-    'no_halaqaat' => 'ابھی تک کوئی حلقہ نہیں',
   ],
   'en' => [
     'app' => 'Kahf Halaqat',
     'dashboard' => 'Dashboard',
+    'greet' => 'Assalamu Alaikum wa Rahmatullahi wa Barakatuhu',
     'search' => 'Search...',
-    'welcome' => 'Assalamu Alaikum!',
-    'welcome_sub' => 'Welcome to Kahf Halaqat system',
     'nav_dashboard' => 'Dashboard',
     'nav_halqaat' => 'Halaqaat',
     'nav_students' => 'Students',
@@ -84,116 +88,290 @@ $T = [
     'switch_en' => 'English',
     'switch_ur' => 'اردو',
 
-    'stat_total_halqaat' => 'Total Halaqaat',
-    'stat_total_students' => 'Total Students',
-    'stat_total_ustaaz' => 'Ustaaz',
-    'stat_upcoming_exams' => 'Upcoming Exams',
+    'total_halqaat' => 'Total Halaqaat',
+    'total_students' => 'Total Students',
+    'total_mumayyaz' => 'Total Mumayyizeen',
 
-    'section_upcoming' => 'Upcoming Exams',
-    'section_gender' => 'By Gender',
-    'section_recent_halqaat' => 'Halaqaat (Latest)',
-    'section_top_students' => 'Top Students (Sample)',
+    'students_by_shuba' => 'Students by Shuba',
+    'students_by_gender' => 'Students by Gender',
+    'students_by_session' => 'Students by Session',
 
     'boys' => 'Boys',
     'girls' => 'Girls',
-
-    // NEW RULES: session only
-    'session' => 'Session',
     'subah' => 'Subah',
     'asr' => 'Asr',
 
-    'active' => 'Active',
-    'inactive' => 'Inactive',
+    'halaqaat' => 'Halaqaat',
+    'top_halaqa_girls' => 'Highest % (Girls)',
+    'top_halaqa_boys_subah' => 'Highest % (Boys — Subah)',
+    'top_halaqa_boys_asr' => 'Highest % (Boys — Asr)',
 
+    'mumtaaz_talaba' => 'Top Student',
+    'score' => 'Score',
+    'pct' => 'Percent',
+    'students' => 'Students',
+    'mumayyaz' => 'Mumayyaz',
+
+    'no_data' => 'No data',
+    'no_shuba' => 'No shuba data',
+    'no_results' => 'No results data',
     'view_all' => 'View all',
-    'no_halaqaat' => 'No halaqaat yet',
   ]
 ];
-
-$isRtl = ($lang === 'ur');
 $tr = $T[$lang];
 
 $fullName = $_SESSION['full_name'] ?? 'Admin';
 
-// -------------------- DB helpers (PHP 5.6 safe) --------------------
-function table_exists($conn, $table)
-{
-  $table = $conn->real_escape_string($table);
-  $sql = "SHOW TABLES LIKE '" . $table . "'";
-  $res = $conn->query($sql);
-  if (!$res) return false;
-  return ($res->num_rows > 0);
-}
-
-function scalar_int($conn, $sql)
-{
-  $res = $conn->query($sql);
-  if (!$res) return 0;
-  $row = $res->fetch_row();
-  return (int)(isset($row[0]) ? $row[0] : 0);
-}
-
+/* -------------------- helpers -------------------- */
 function h($s)
 {
   return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
 }
 
-// -------------------- REAL STATS --------------------
-$stats = array(
-  'halqaat' => 0,
-  'students' => 0,
-  'ustaaz' => 0,
-  'upcoming_exams' => 0,
-  'boys' => 0,
-  'girls' => 0
-);
-
-// ✅ FIX: your table is halaqaat (not halqaat)
-$tbl_halqaat = 'halaqaat';
-$tbl_students = 'students';
-$tbl_users = 'users';
-$tbl_exams = 'exams';
-
-if (table_exists($conn, $tbl_halqaat)) {
-  $stats['halqaat'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halqaat`");
+function table_exists($conn, $table)
+{
+  $table = $conn->real_escape_string($table);
+  $res = $conn->query("SHOW TABLES LIKE '$table'");
+  return ($res && $res->num_rows > 0);
 }
-
-if (table_exists($conn, $tbl_students)) {
-  $stats['students'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students`");
-  $stats['boys']  = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('male','boy','boys')");
-  $stats['girls'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('female','girl','girls')");
+function column_exists($conn, $table, $col)
+{
+  $t = $conn->real_escape_string($table);
+  $c = $conn->real_escape_string($col);
+  $res = $conn->query("SHOW COLUMNS FROM `$t` LIKE '$c'");
+  return ($res && $res->num_rows > 0);
 }
-
-if (table_exists($conn, $tbl_users)) {
-  $stats['ustaaz'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_users` WHERE role='ustaaz' AND is_active=1");
-}
-
-if (table_exists($conn, $tbl_exams)) {
-  $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_exams` WHERE exam_date >= CURDATE()");
-} elseif (table_exists($conn, 'exam_sessions')) {
-  $stats['upcoming_exams'] = scalar_int($conn, "SELECT COUNT(*) FROM `exam_sessions` WHERE exam_date >= CURDATE()");
-}
-
-// -------------------- Latest Halaqaat (from DB) --------------------
-$recentHalaqaat = [];
-if (table_exists($conn, $tbl_halqaat)) {
-  $sql = "SELECT id, name_ur, name_en, gender, session, is_active
-            FROM `$tbl_halqaat`
-            ORDER BY id DESC
-            LIMIT 6";
+function scalar_int($conn, $sql)
+{
   $res = $conn->query($sql);
+  if (!$res) return 0;
+  $row = $res->fetch_row();
+  return (int)($row[0] ?? 0);
+}
+function scalar_str($conn, $sql)
+{
+  $res = $conn->query($sql);
+  if (!$res) return '';
+  $row = $res->fetch_row();
+  return (string)($row[0] ?? '');
+}
+function normalize_gender_val($g)
+{
+  $g = strtolower(trim((string)$g));
+  if (in_array($g, ['girl', 'girls', 'female', 'f'], true)) return 'girl';
+  return 'boy';
+}
+function normalize_session_val($s)
+{
+  $s = strtolower(trim((string)$s));
+  if (in_array($s, ['asr', 'asar', 'a'], true)) return 'asr';
+  return 'subah';
+}
+function pct($num, $den)
+{
+  if ((int)$den <= 0) return 0;
+  return (int)round(((float)$num / (float)$den) * 100.0);
+}
+
+/* -------------------- tables -------------------- */
+$tbl_halqaat  = 'halaqaat';
+$tbl_students = 'students';
+$tbl_users    = 'users';
+
+/* -------------------- detect columns -------------------- */
+$hasHalaqaat  = table_exists($conn, $tbl_halqaat);
+$hasStudents  = table_exists($conn, $tbl_students);
+
+$studentsHasHalaqa = $hasStudents && column_exists($conn, $tbl_students, 'halaqa_id');
+$mumCol = null;
+if ($hasStudents) {
+  if (column_exists($conn, $tbl_students, 'is_mumayyaz')) $mumCol = 'is_mumayyaz';
+  else if (column_exists($conn, $tbl_students, 'mumayyaz')) $mumCol = 'mumayyaz';
+}
+
+/* -------------------- stats -------------------- */
+$totalHalaqaat  = $hasHalaqaat ? scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_halqaat`") : 0;
+$totalStudents  = $hasStudents ? scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students`") : 0;
+$totalMumayyaz  = ($hasStudents && $mumCol) ? scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE COALESCE(`$mumCol`,0)=1") : 0;
+
+/* -------------------- gender distribution (students table) -------------------- */
+$boysCnt = 0;
+$girlsCnt = 0;
+if ($hasStudents && column_exists($conn, $tbl_students, 'gender')) {
+  $boysCnt  = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('male','boy','boys','m')");
+  $girlsCnt = scalar_int($conn, "SELECT COUNT(*) FROM `$tbl_students` WHERE LOWER(gender) IN ('female','girl','girls','f')");
+}
+
+/* -------------------- session distribution (students joined to halaqaat if possible) -------------------- */
+$subahCnt = 0;
+$asrCnt = 0;
+if ($hasHalaqaat && $hasStudents && $studentsHasHalaqa && column_exists($conn, $tbl_halqaat, 'session')) {
+  $sqlSess = "
+        SELECT LOWER(h.session) AS sess, COUNT(s.id) AS cnt
+        FROM `$tbl_halqaat` h
+        LEFT JOIN `$tbl_students` s ON s.halaqa_id = h.id
+        GROUP BY LOWER(h.session)
+    ";
+  $res = $conn->query($sqlSess);
   if ($res) {
-    while ($row = $res->fetch_assoc()) $recentHalaqaat[] = $row;
+    while ($r = $res->fetch_assoc()) {
+      $sess = normalize_session_val($r['sess'] ?? 'subah');
+      $cnt  = (int)($r['cnt'] ?? 0);
+      if ($sess === 'asr') $asrCnt += $cnt;
+      else $subahCnt += $cnt;
+    }
     $res->free();
   }
 }
 
-// Sample top students (keep for now)
-$sampleTop = [
-  ['name_ur' => 'عثمان طارق', 'name_en' => 'Usman Tariq', 'score' => 96],
-  ['name_ur' => 'عائشہ ملک', 'name_en' => 'Ayesha Malik', 'score' => 94],
-  ['name_ur' => 'عبداللہ خان', 'name_en' => 'Abdullah Khan', 'score' => 91],
-];
+/* -------------------- shuba distribution -------------------- */
+$shubaCol = null;
+$shubaCandidates = ['shuba', 'shobah', 'department', 'division', 'section'];
+if ($hasStudents) {
+  foreach ($shubaCandidates as $c) {
+    if (column_exists($conn, $tbl_students, $c)) {
+      $shubaCol = $c;
+      break;
+    }
+  }
+}
+$shubaRows = [];
+if ($hasStudents && $shubaCol) {
+  $c = $conn->real_escape_string($shubaCol);
+  $sqlSh = "
+        SELECT NULLIF(TRIM(`$c`),'') AS shuba, COUNT(*) AS cnt
+        FROM `$tbl_students`
+        GROUP BY NULLIF(TRIM(`$c`),'')
+        HAVING shuba IS NOT NULL
+        ORDER BY cnt DESC
+        LIMIT 5
+    ";
+  $res = $conn->query($sqlSh);
+  if ($res) {
+    while ($r = $res->fetch_assoc()) $shubaRows[] = $r;
+    $res->free();
+  }
+}
+
+/* -------------------- Top halaqaat by percent (girls / boys-subah / boys-asr) -------------------- */
+function top_halaqa_by_filter($conn, $tbl_halqaat, $tbl_students, $mumCol, $whereSql)
+{
+  if (!$mumCol) return null;
+  $sql = "
+        SELECT
+            h.id, h.name_ur, h.name_en, h.gender, h.session,
+            COUNT(s.id) AS students_count,
+            SUM(CASE WHEN COALESCE(s.`$mumCol`,0)=1 THEN 1 ELSE 0 END) AS mumayyaz_count
+        FROM `$tbl_halqaat` h
+        LEFT JOIN `$tbl_students` s ON s.halaqa_id = h.id
+        WHERE $whereSql
+        GROUP BY h.id, h.name_ur, h.name_en, h.gender, h.session
+        HAVING students_count > 0
+        ORDER BY (mumayyaz_count / students_count) DESC, students_count DESC, h.id DESC
+        LIMIT 1
+    ";
+  $res = $conn->query($sql);
+  if (!$res) return null;
+  $row = $res->fetch_assoc();
+  $res->free();
+  return $row ?: null;
+}
+
+$topGirls = null;
+$topBoysSubah = null;
+$topBoysAsr = null;
+
+if ($hasHalaqaat && $hasStudents && $studentsHasHalaqa && $mumCol) {
+  // handle old values like boys/girls
+  $girlsWhere = "LOWER(h.gender) IN ('girl','girls','female','f')";
+  $boysWhere  = "LOWER(h.gender) IN ('boy','boys','male','m')";
+
+  $topGirls     = top_halaqa_by_filter($conn, $tbl_halqaat, $tbl_students, $mumCol, $girlsWhere);
+  $topBoysSubah = top_halaqa_by_filter($conn, $tbl_halqaat, $tbl_students, $mumCol, "$boysWhere AND LOWER(h.session) IN ('subah','morning')");
+  $topBoysAsr   = top_halaqa_by_filter($conn, $tbl_halqaat, $tbl_students, $mumCol, "$boysWhere AND LOWER(h.session) IN ('asr','asar')");
+}
+
+/* -------------------- Top student (best effort across possible schemas) -------------------- */
+$topStudentName = '';
+$topStudentScore = '';
+
+if ($hasStudents) {
+  // 1) student_results(student_id, score)
+  if (table_exists($conn, 'student_results') && column_exists($conn, 'student_results', 'student_id') && column_exists($conn, 'student_results', 'score')) {
+    $sql = "
+            SELECT COALESCE(s.full_name_ur, s.full_name_en, s.full_name, s.name, '-') AS nm, r.score
+            FROM student_results r
+            JOIN `$tbl_students` s ON s.id = r.student_id
+            ORDER BY r.score DESC
+            LIMIT 1
+        ";
+    $res = $conn->query($sql);
+    if ($res && ($r = $res->fetch_assoc())) {
+      $topStudentName = (string)$r['nm'];
+      $topStudentScore = (string)$r['score'];
+    }
+    if ($res) $res->free();
+  }
+  // 2) exam_results(student_id, score/marks)
+  if ($topStudentName === '' && table_exists($conn, 'exam_results') && column_exists($conn, 'exam_results', 'student_id')) {
+    $scoreCol = column_exists($conn, 'exam_results', 'score') ? 'score' : (column_exists($conn, 'exam_results', 'marks') ? 'marks' : null);
+    if ($scoreCol) {
+      $sql = "
+                SELECT COALESCE(s.full_name_ur, s.full_name_en, s.full_name, s.name, '-') AS nm, r.`$scoreCol` AS sc
+                FROM exam_results r
+                JOIN `$tbl_students` s ON s.id = r.student_id
+                ORDER BY r.`$scoreCol` DESC
+                LIMIT 1
+            ";
+      $res = $conn->query($sql);
+      if ($res && ($r = $res->fetch_assoc())) {
+        $topStudentName = (string)$r['nm'];
+        $topStudentScore = (string)$r['sc'];
+      }
+      if ($res) $res->free();
+    }
+  }
+  // 3) students(score/marks)
+  if ($topStudentName === '' && (column_exists($conn, $tbl_students, 'score') || column_exists($conn, $tbl_students, 'marks'))) {
+    $sc = column_exists($conn, $tbl_students, 'score') ? 'score' : 'marks';
+    $sql = "
+            SELECT COALESCE(full_name_ur, full_name_en, full_name, name, '-') AS nm, `$sc` AS sc
+            FROM `$tbl_students`
+            WHERE `$sc` IS NOT NULL
+            ORDER BY `$sc` DESC
+            LIMIT 1
+        ";
+    $res = $conn->query($sql);
+    if ($res && ($r = $res->fetch_assoc())) {
+      $topStudentName = (string)$r['nm'];
+      $topStudentScore = (string)$r['sc'];
+    }
+    if ($res) $res->free();
+  }
+}
+
+/* -------------------- UI helpers for cards -------------------- */
+function halaqa_display_name($row, $lang)
+{
+  $name = '';
+  if ($lang === 'en') $name = trim((string)($row['name_en'] ?? ''));
+  if ($name === '') $name = trim((string)($row['name_ur'] ?? ''));
+  if ($name === '') $name = 'Halaqa #' . (int)($row['id'] ?? 0);
+  return $name;
+}
+function safe_int($v)
+{
+  return (int)($v ?? 0);
+}
+
+$chevSvg = function ($dir) {
+  // dir: 'left' or 'right'
+  if ($dir === 'left') {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  }
+  return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+};
+
 ?>
 <!doctype html>
 <html lang="<?php echo h($lang); ?>" dir="<?php echo $isRtl ? 'rtl' : 'ltr'; ?>">
@@ -202,47 +380,18 @@ $sampleTop = [
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
-
   <title><?php echo h($tr['dashboard']); ?> — <?php echo h($tr['app']); ?></title>
 
   <style>
-    /* ✅ Force fonts by language (fix places still not Nastaliq) */
-    html[lang="ur"] body,
-    html[lang="ur"] .sidebar,
-    html[lang="ur"] .main,
-    html[lang="ur"] .pill,
-    html[lang="ur"] .nav a,
-    html[lang="ur"] .cardHeader,
-    html[lang="ur"] .stat .label,
-    html[lang="ur"] .stat .val,
-    html[lang="ur"] input,
-    html[lang="ur"] select,
-    html[lang="ur"] option,
-    html[lang="ur"] button,
-    html[lang="ur"] table,
-    html[lang="ur"] th,
-    html[lang="ur"] td {
-      font-family: 'Noto Nastaliq Urdu', serif !important;
+    html[lang="en"] body,
+    html[lang="en"] * {
+      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
     }
 
-    html[lang="en"] body,
-    html[lang="en"] .sidebar,
-    html[lang="en"] .main,
-    html[lang="en"] .pill,
-    html[lang="en"] .nav a,
-    html[lang="en"] .cardHeader,
-    html[lang="en"] .stat .label,
-    html[lang="en"] .stat .val,
-    html[lang="en"] input,
-    html[lang="en"] select,
-    html[lang="en"] option,
-    html[lang="en"] button,
-    html[lang="en"] table,
-    html[lang="en"] th,
-    html[lang="en"] td {
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
+    html[lang="ur"] body,
+    html[lang="ur"] * {
+      font-family: 'Noto Nastaliq Urdu', serif !important;
     }
 
     :root {
@@ -300,14 +449,14 @@ $sampleTop = [
       font-weight: 900;
       font-size: 16px;
       letter-spacing: .4px;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
+      font-family: 'Montserrat', sans-serif !important;
     }
 
     .brand .sub {
       font-weight: 700;
       font-size: 12px;
       opacity: .85;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
+      font-family: 'Montserrat', sans-serif !important;
     }
 
     .sideToggle {
@@ -318,14 +467,13 @@ $sampleTop = [
       border-radius: 12px;
       font-weight: 900;
       cursor: pointer;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
+      font-family: 'Montserrat', sans-serif !important;
     }
 
     .sideToggle:hover {
       background: rgba(255, 255, 255, .12);
     }
 
-    /* PC collapsible sidebar behavior */
     .layout.collapsed {
       grid-template-columns: 90px 1fr;
     }
@@ -340,10 +488,6 @@ $sampleTop = [
     .layout.collapsed .nav a {
       justify-content: center;
       padding: 12px;
-    }
-
-    .nav a {
-      gap: 10px;
     }
 
     .nav {
@@ -366,10 +510,9 @@ $sampleTop = [
       gap: 10px;
       background: transparent;
       border: 1px solid rgba(255, 255, 255, .10);
-
       position: relative;
       padding-left: 40px;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif !important;
+      font-family: 'Montserrat', sans-serif !important;
     }
 
     html[dir="rtl"] .nav a {
@@ -386,16 +529,6 @@ $sampleTop = [
       background: rgba(255, 255, 255, .08);
     }
 
-    .sidebarBottom {
-      margin-top: 14px;
-      padding-top: 14px;
-      border-top: 1px solid rgba(255, 255, 255, .12);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    /* Sidebar icons */
     .nav a::before {
       content: '';
       position: absolute;
@@ -446,41 +579,48 @@ $sampleTop = [
       -webkit-mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" fill="black" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.11-.2-.36-.28-.57-.22l-2.39.96c-.5-.38-1.04-.7-1.64-.94L14.5 2h-5l-.37 2.35c-.6.24-1.14.56-1.64.94l-2.39-.96c-.21-.06-.46.02-.57.22L2.61 7.87c-.11.2-.06.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94L2.73 14.52c-.18.14-.23.41-.12.61l1.92 3.32c.11.2.36.28.57.22l2.39-.96c.5.38 1.04.7 1.64.94L9.5 22h5l.37-2.35c.6-.24 1.14-.56 1.64-.94l2.39.96c.21.06.46-.02.57-.22l1.92-3.32c.11-.2.06-.47-.12-.61l-2.03-1.58z"/></svg>');
     }
 
+    .sidebarBottom {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, .12);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .pillSide {
+      display: block;
+      text-align: center;
+      text-decoration: none;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, .25);
+      background: rgba(255, 255, 255, .08);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-weight: 900;
+    }
+
+    .pillSide.logout {
+      background: #b11c1c;
+      border-color: rgba(255, 255, 255, .25);
+    }
+
+    .pillSide.logout:hover {
+      filter: brightness(.95);
+    }
+
     .main {
       padding: 18px;
     }
 
+    /* top controls */
     .topbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
       flex-wrap: wrap;
-      margin-bottom: 14px;
-    }
-
-    .search {
-      flex: 1;
-      min-width: 220px;
-      max-width: 520px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 10px 12px;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, .04);
-    }
-
-    .search input {
-      width: 100%;
-      border: 0;
-      outline: none;
-      font-size: 14px;
-      background: transparent;
-      color: var(--accent);
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+      margin-bottom: 12px;
     }
 
     .controls {
@@ -499,103 +639,61 @@ $sampleTop = [
       color: var(--accent);
       font-weight: 900;
       font-size: 13px;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
     }
 
     .pill.active {
       background: var(--secondary);
       border-color: var(--secondary);
-      color: #ffffff;
+      color: #fff;
     }
 
     .pill.logout {
       background: var(--primary);
-      color: #fff;
       border-color: var(--primary);
+      color: #fff;
     }
 
+    /* HERO (primary bg) */
     .hero {
-      background: linear-gradient(90deg, rgba(68, 68, 68, .92), rgba(68, 68, 68, .70));
+      background: var(--primary);
       color: #fff;
       border-radius: 16px;
-      padding: 20px;
-      border-bottom: 4px solid var(--secondary);
-      margin-bottom: 14px;
+      padding: 18px 18px;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, .08);
+      margin-bottom: 12px;
     }
 
-    .hero h1 {
-      margin: 0 0 8px 0;
-      font-size: 24px;
+    .heroTitle {
+      font-size: 20px;
       font-weight: 900;
-    }
-
-    .hero p {
       margin: 0;
-      opacity: .92;
       line-height: 1.8;
-      font-size: 14px;
     }
 
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    @media (max-width: 1100px) {
-      .stats {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 520px) {
-      .stats {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .stat {
-      background: #fff;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 14px;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, .04);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      min-height: 82px;
-    }
-
-    .stat .label {
-      color: #666;
+    .heroSub {
+      margin: 6px 0 0 0;
+      opacity: .95;
+      line-height: 1.9;
       font-weight: 800;
       font-size: 13px;
     }
 
-    .stat .val {
-      font-size: 24px;
-      font-weight: 900;
-      color: var(--accent);
-    }
-
-    .stat.primary {
-      border-left: 6px solid var(--primary);
-    }
-
-    .stat.secondary {
-      border-left: 6px solid var(--secondary);
-    }
-
-    .grid {
+    /* grids */
+    .grid3 {
       display: grid;
-      grid-template-columns: 1.2fr .8fr;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
+      margin-bottom: 12px;
     }
 
-    @media (max-width: 980px) {
-      .grid {
+    @media(max-width:1100px) {
+      .grid3 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media(max-width:600px) {
+      .grid3 {
         grid-template-columns: 1fr;
       }
     }
@@ -608,7 +706,11 @@ $sampleTop = [
       overflow: hidden;
     }
 
-    .cardHeader {
+    .cardPad {
+      padding: 14px;
+    }
+
+    .cardHead {
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
       display: flex;
@@ -617,76 +719,180 @@ $sampleTop = [
       gap: 10px;
       font-weight: 900;
       font-size: 13px;
+    }
+
+    /* stat cards */
+    .statCard {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .statLabel {
+      color: #666;
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .statVal {
+      font-weight: 900;
+      font-size: 28px;
       color: var(--accent);
     }
 
-    .cardBody {
-      padding: 14px;
+    .statBar {
+      width: 10px;
+      align-self: stretch;
+      border-radius: 10px;
+      background: linear-gradient(180deg, rgba(15, 45, 61, .18), rgba(15, 45, 61, .05));
     }
 
-    .list {
+    .statBar.secondary {
+      background: linear-gradient(180deg, rgba(170, 129, 94, .22), rgba(170, 129, 94, .06));
+    }
+
+    /* mini chart rows */
+    .chartRow {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 12px;
+      align-items: center;
+      margin: 10px 0;
+    }
+
+    html[dir="rtl"] .chartRow {
+      grid-template-columns: 1fr 60px;
+    }
+
+    .chartVal {
+      font-weight: 900;
+      font-size: 13px;
+      color: var(--accent);
+      text-align: left;
+      font-family: 'Montserrat', sans-serif !important;
+    }
+
+    html[dir="rtl"] .chartVal {
+      text-align: right;
+    }
+
+    .chartLine {
       display: flex;
-      flex-direction: column;
+      align-items: center;
       gap: 10px;
     }
 
-    .row {
+    .chartLabel {
+      font-weight: 900;
+      font-size: 12px;
+      color: #666;
+      min-width: 72px;
+    }
+
+    .chartTrack {
+      flex: 1;
+      height: 8px;
+      border-radius: 999px;
+      background: #eee7e1;
+      overflow: hidden;
+      border: 1px solid rgba(0, 0, 0, .03);
+    }
+
+    .chartFill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+    }
+
+    .fillPrimary {
+      background: rgba(15, 45, 61, .80);
+    }
+
+    .fillSecondary {
+      background: rgba(170, 129, 94, .85);
+    }
+
+    .fillBoy {
+      background: rgba(47, 111, 214, .85);
+    }
+
+    .fillGirl {
+      background: rgba(210, 78, 138, .85);
+    }
+
+    /* section header with chevron */
+    .sectionHead {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 12px;
+      margin: 10px 0 10px;
+    }
+
+    .sectionTitle {
+      font-weight: 900;
+      font-size: 15px;
+      color: var(--accent);
+    }
+
+    .sectionBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
       border: 1px solid var(--border);
-      border-radius: 14px;
       background: #fff;
+      color: var(--accent);
+      text-decoration: none;
     }
 
-    .row .left {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
+    .sectionBtn svg {
+      width: 20px;
+      height: 20px;
     }
 
-    .row .title {
+    /* top halaqa cards */
+    .topHCard .name {
       font-weight: 900;
       font-size: 14px;
-      color: var(--accent);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .row .meta {
-      font-size: 12px;
-      color: #666;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
+    .topHCard .meta {
+      margin-top: 8px;
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
     }
 
     .badge {
-      display: inline-block;
-      padding: 4px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
       border-radius: 999px;
-      font-size: 12px;
-      font-weight: 900;
-      font-family: 'Montserrat', system-ui, -apple-system, Segoe UI, Arial, sans-serif;
       border: 1px solid var(--border);
       background: #fff;
+      font-weight: 900;
+      font-size: 12px;
       color: var(--accent);
       white-space: nowrap;
+      font-family: 'Montserrat', sans-serif !important;
     }
 
     .badge.primary {
-      background: rgba(62, 132, 106, .12);
-      border-color: rgba(62, 132, 106, .35);
+      background: rgba(15, 45, 61, .10);
+      border-color: rgba(15, 45, 61, .26);
     }
 
     .badge.secondary {
-      background: rgba(177, 143, 110, .14);
-      border-color: rgba(177, 143, 110, .45);
+      background: rgba(170, 129, 94, .12);
+      border-color: rgba(170, 129, 94, .32);
     }
 
     .badge.boy {
@@ -701,67 +907,12 @@ $sampleTop = [
       color: #9c2e63;
     }
 
-    .halaqaGrid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
-    }
-
-    @media (max-width: 1100px) {
-      .halaqaGrid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
-    }
-
-    @media (max-width: 600px) {
-      .halaqaGrid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .halaqaCard {
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 14px;
-      background: #fff;
-      box-shadow: 0 6px 18px rgba(0, 0, 0, .04);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      min-height: 140px;
-    }
-
-    .halaqaTitle {
-      font-weight: 900;
-      font-size: 14px;
-      color: var(--accent);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .halaqaMeta {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-
-    .halaqaFoot {
-      margin-top: auto;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      color: #666;
-      font-size: 12px;
-    }
-
     /* Mobile sidebar */
     .menuBtn {
       display: none;
-      background: #3e846a;
+      background: var(--primary);
       border: 1px solid rgba(255, 255, 255, .6);
-      color: #ffffff;
+      color: #fff;
       padding: 10px 12px;
       border-radius: 12px;
       font-weight: 900;
@@ -770,13 +921,7 @@ $sampleTop = [
       line-height: 1;
     }
 
-    .menuBtn:focus,
-    .menuBtn:active {
-      outline: none;
-      box-shadow: none;
-    }
-
-    @media (max-width: 980px) {
+    @media(max-width:980px) {
       .layout {
         grid-template-columns: 1fr;
       }
@@ -832,7 +977,6 @@ $sampleTop = [
   <div class="overlay" id="overlay" onclick="toggleSidebar(false)"></div>
 
   <div class="layout">
-    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="brand">
         <div>
@@ -844,9 +988,8 @@ $sampleTop = [
 
       <nav class="nav">
         <a class="active dash" href="dashboard_admin.php"><span class="txt"><?php echo h($tr['nav_dashboard']); ?></span></a>
-        <!-- ✅ LINK TO REAL PAGE -->
         <a class="halaqa" href="halaqaat_admin.php"><span class="txt"><?php echo h($tr['nav_halqaat']); ?></span></a>
-        <a class="students" href="#"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
+        <a class="students" href="students_admin.php"><span class="txt"><?php echo h($tr['nav_students']); ?></span></a>
         <a class="ustaaz" href="#"><span class="txt"><?php echo h($tr['nav_ustaaz']); ?></span></a>
         <a class="exams" href="#"><span class="txt"><?php echo h($tr['nav_exams']); ?></span></a>
         <a class="reports" href="#"><span class="txt"><?php echo h($tr['nav_reports']); ?></span></a>
@@ -854,18 +997,13 @@ $sampleTop = [
       </nav>
 
       <div class="sidebarBottom">
-        <a class="navLink pill logout" style="text-align:center;" href="logout.php"><?php echo h($tr['logout']); ?></a>
+        <a class="pillSide logout" href="logout.php"><?php echo h($tr['logout']); ?></a>
       </div>
     </aside>
 
-    <!-- Main -->
     <main class="main">
       <div class="topbar">
         <button class="menuBtn" type="button" onclick="toggleSidebar()">☰</button>
-
-        <div class="search">
-          <input type="text" placeholder="<?php echo h($tr['search']); ?>">
-        </div>
 
         <div class="controls">
           <a class="pill <?php echo $lang === 'ur' ? 'active' : ''; ?>" href="?lang=ur"><?php echo h($tr['switch_ur']); ?></a>
@@ -874,164 +1012,245 @@ $sampleTop = [
         </div>
       </div>
 
+      <!-- HERO -->
       <section class="hero">
-        <h1><?php echo h($tr['welcome']); ?></h1>
-        <p><?php echo h($tr['welcome_sub']); ?> — <?php echo h($fullName); ?></p>
+        <h1 class="heroTitle"><?php echo h($tr['dashboard']); ?></h1>
+        <p class="heroSub"><?php echo h($tr['greet']); ?></p>
       </section>
 
-      <!-- Stats -->
-      <section class="stats">
-        <div class="stat secondary">
-          <div class="label"><?php echo h($tr['stat_upcoming_exams']); ?></div>
-          <div class="val"><?php echo (int)$stats['upcoming_exams']; ?></div>
-        </div>
-        <div class="stat primary">
-          <div class="label"><?php echo h($tr['stat_total_ustaaz']); ?></div>
-          <div class="val"><?php echo (int)$stats['ustaaz']; ?></div>
-        </div>
-        <div class="stat secondary">
-          <div class="label"><?php echo h($tr['stat_total_students']); ?></div>
-          <div class="val"><?php echo (int)$stats['students']; ?></div>
-        </div>
-        <div class="stat primary">
-          <div class="label"><?php echo h($tr['stat_total_halqaat']); ?></div>
-          <div class="val"><?php echo (int)$stats['halqaat']; ?></div>
-        </div>
-      </section>
-
-      <section class="grid">
-        <!-- Left column -->
+      <!-- STATS (3 cards) -->
+      <section class="grid3">
         <div class="card">
-          <div class="cardHeader">
-            <span><?php echo h($tr['section_recent_halqaat']); ?></span>
-            <a class="badge secondary" href="halaqaat_admin.php" style="text-decoration:none;"><?php echo h($tr['view_all']); ?></a>
+          <div class="cardPad statCard">
+            <div>
+              <div class="statLabel"><?php echo h($tr['total_halqaat']); ?></div>
+              <div class="statVal"><?php echo (int)$totalHalaqaat; ?></div>
+            </div>
+            <div class="statBar"></div>
           </div>
+        </div>
 
-          <div class="cardBody">
-            <?php if (empty($recentHalaqaat)): ?>
-              <div style="padding:10px; color:#777;"><?php echo h($tr['no_halaqaat']); ?></div>
+        <div class="card">
+          <div class="cardPad statCard">
+            <div>
+              <div class="statLabel"><?php echo h($tr['total_students']); ?></div>
+              <div class="statVal"><?php echo (int)$totalStudents; ?></div>
+            </div>
+            <div class="statBar secondary"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="cardPad statCard">
+            <div>
+              <div class="statLabel"><?php echo h($tr['total_mumayyaz']); ?></div>
+              <div class="statVal"><?php echo (int)$totalMumayyaz; ?></div>
+            </div>
+            <div class="statBar"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ANALYTICS (3 cards) -->
+      <section class="grid3">
+
+        <!-- Students by Shuba -->
+        <div class="card">
+          <div class="cardHead"><?php echo h($tr['students_by_shuba']); ?></div>
+          <div class="cardPad">
+            <?php if (!$shubaCol || empty($shubaRows)): ?>
+              <div style="color:#777; font-weight:900;"><?php echo h($tr['no_shuba']); ?></div>
             <?php else: ?>
-              <div class="halaqaGrid">
-                <?php foreach ($recentHalaqaat as $hrow): ?>
-                  <?php
-                  $g = strtolower(trim($hrow['gender'] ?? 'boys'));
-                  if ($g !== 'girls' && $g !== 'boys') $g = 'boys';
-
-                  $sess = strtolower(trim($hrow['session'] ?? 'subah'));
-                  if ($sess !== 'asr' && $sess !== 'subah') $sess = 'subah';
-
-                  $title = ($lang === 'ur') ? ($hrow['name_ur'] ?? '') : ($hrow['name_en'] ?? '');
-                  $title = trim((string)$title);
-                  if ($title === '') $title = trim((string)($hrow['name_ur'] ?? $hrow['name_en'] ?? ('Halaqa #' . (int)$hrow['id'])));
-                  ?>
-                  <div class="halaqaCard">
-                    <div class="halaqaTitle"><?php echo h($title); ?></div>
-
-                    <div class="halaqaMeta">
-                      <span class="badge <?php echo ($g === 'girls') ? 'girl' : 'boy'; ?>">
-                        <?php echo h(($g === 'girls') ? $tr['girls'] : $tr['boys']); ?>
-                      </span>
-
-                      <span class="badge secondary">
-                        <?php echo h($sess === 'asr' ? $tr['asr'] : $tr['subah']); ?>
-                      </span>
-
-                      <?php if ((int)$hrow['is_active'] === 1): ?>
-                        <span class="badge primary"><?php echo h($tr['active']); ?></span>
-                      <?php else: ?>
-                        <span class="badge secondary"><?php echo h($tr['inactive']); ?></span>
-                      <?php endif; ?>
-                    </div>
-
-                    <div class="halaqaFoot">
-                      <span>#<?php echo (int)$hrow['id']; ?></span>
-                      <span><?php echo h($tr['session']); ?>: <?php echo h($sess === 'asr' ? $tr['asr'] : $tr['subah']); ?></span>
+              <?php
+              $max = 0;
+              foreach ($shubaRows as $r) $max = max($max, (int)($r['cnt'] ?? 0));
+              if ($max <= 0) $max = 1;
+              ?>
+              <?php foreach ($shubaRows as $r): ?>
+                <?php
+                $label = (string)($r['shuba'] ?? '');
+                $cnt   = (int)($r['cnt'] ?? 0);
+                $w = (int)round(($cnt / $max) * 100);
+                ?>
+                <div class="chartRow">
+                  <div class="chartVal"><?php echo (int)$cnt; ?></div>
+                  <div class="chartLine">
+                    <div class="chartLabel"><?php echo h($label); ?></div>
+                    <div class="chartTrack">
+                      <div class="chartFill fillSecondary" style="width:<?php echo $w; ?>%"></div>
                     </div>
                   </div>
-                <?php endforeach; ?>
+                </div>
+              <?php endforeach; ?>
+            <?php endif; ?>
+          </div>
+        </div>
+
+        <!-- Students by Gender -->
+        <div class="card">
+          <div class="cardHead"><?php echo h($tr['students_by_gender']); ?></div>
+          <div class="cardPad">
+            <?php
+            $gMax = max($boysCnt, $girlsCnt);
+            if ($gMax <= 0) $gMax = 1;
+            $boysW  = (int)round(($boysCnt / $gMax) * 100);
+            $girlsW = (int)round(($girlsCnt / $gMax) * 100);
+            ?>
+            <div class="chartRow">
+              <div class="chartVal"><?php echo (int)$boysCnt; ?></div>
+              <div class="chartLine">
+                <div class="chartLabel"><?php echo h($tr['boys']); ?></div>
+                <div class="chartTrack">
+                  <div class="chartFill fillBoy" style="width:<?php echo $boysW; ?>%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="chartRow">
+              <div class="chartVal"><?php echo (int)$girlsCnt; ?></div>
+              <div class="chartLine">
+                <div class="chartLabel"><?php echo h($tr['girls']); ?></div>
+                <div class="chartTrack">
+                  <div class="chartFill fillGirl" style="width:<?php echo $girlsW; ?>%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Students by Session -->
+        <div class="card">
+          <div class="cardHead"><?php echo h($tr['students_by_session']); ?></div>
+          <div class="cardPad">
+            <?php
+            $sMax = max($subahCnt, $asrCnt);
+            if ($sMax <= 0) $sMax = 1;
+            $subahW = (int)round(($subahCnt / $sMax) * 100);
+            $asrW   = (int)round(($asrCnt / $sMax) * 100);
+            ?>
+            <div class="chartRow">
+              <div class="chartVal"><?php echo (int)$subahCnt; ?></div>
+              <div class="chartLine">
+                <div class="chartLabel"><?php echo h($tr['subah']); ?></div>
+                <div class="chartTrack">
+                  <div class="chartFill fillPrimary" style="width:<?php echo $subahW; ?>%"></div>
+                </div>
+              </div>
+            </div>
+            <div class="chartRow">
+              <div class="chartVal"><?php echo (int)$asrCnt; ?></div>
+              <div class="chartLine">
+                <div class="chartLabel"><?php echo h($tr['asr']); ?></div>
+                <div class="chartTrack">
+                  <div class="chartFill fillSecondary" style="width:<?php echo $asrW; ?>%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- HALAQAAT section -->
+      <div class="sectionHead">
+        <div class="sectionTitle"><?php echo h($tr['halaqaat']); ?></div>
+        <a class="sectionBtn" href="halaqaat_admin.php" title="<?php echo h($tr['view_all']); ?>">
+          <?php echo $chevSvg($isRtl ? 'left' : 'right'); ?>
+        </a>
+      </div>
+
+      <section class="grid3">
+        <!-- Girls top -->
+        <div class="card topHCard">
+          <div class="cardHead"><?php echo h($tr['top_halaqa_girls']); ?></div>
+          <div class="cardPad">
+            <?php if (!$topGirls): ?>
+              <div style="color:#777; font-weight:900;"><?php echo h($tr['no_data']); ?></div>
+            <?php else: ?>
+              <?php
+              $name = halaqa_display_name($topGirls, $lang);
+              $students = safe_int($topGirls['students_count']);
+              $mum = safe_int($topGirls['mumayyaz_count']);
+              $p = pct($mum, $students);
+              ?>
+              <div class="name"><?php echo h($name); ?></div>
+              <div class="meta">
+                <span class="badge girl"><?php echo h($tr['girls']); ?></span>
+                <span class="badge secondary"><?php echo h($tr['students']); ?>: <?php echo (int)$students; ?></span>
+                <span class="badge primary"><?php echo h($tr['mumayyaz']); ?>: <?php echo (int)$mum; ?></span>
+                <span class="badge secondary"><?php echo h($tr['pct']); ?>: <?php echo (int)$p; ?>%</span>
               </div>
             <?php endif; ?>
           </div>
         </div>
 
-        <!-- Right column -->
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          <div class="card">
-            <div class="cardHeader">
-              <span><?php echo h($tr['section_upcoming']); ?></span>
-              <span class="badge secondary"><?php echo h($tr['view_all']); ?></span>
-            </div>
-            <div class="cardBody">
-              <div class="list">
-                <div class="row">
-                  <div class="left">
-                    <div class="title">2026-02-05</div>
-                    <div class="meta">
-                      <span class="badge primary"><?php echo h($tr['boys']); ?></span>
-                      <span class="badge secondary">10:00</span>
-                    </div>
-                  </div>
-                  <span class="badge secondary">+<?php echo (int)$stats['upcoming_exams']; ?></span>
-                </div>
-
-                <div class="row">
-                  <div class="left">
-                    <div class="title">2026-02-08</div>
-                    <div class="meta">
-                      <span class="badge primary"><?php echo h($tr['girls']); ?></span>
-                      <span class="badge secondary">11:00</span>
-                    </div>
-                  </div>
-                  <span class="badge secondary">✓</span>
-                </div>
+        <!-- Boys subah top -->
+        <div class="card topHCard">
+          <div class="cardHead"><?php echo h($tr['top_halaqa_boys_subah']); ?></div>
+          <div class="cardPad">
+            <?php if (!$topBoysSubah): ?>
+              <div style="color:#777; font-weight:900;"><?php echo h($tr['no_data']); ?></div>
+            <?php else: ?>
+              <?php
+              $name = halaqa_display_name($topBoysSubah, $lang);
+              $students = safe_int($topBoysSubah['students_count']);
+              $mum = safe_int($topBoysSubah['mumayyaz_count']);
+              $p = pct($mum, $students);
+              ?>
+              <div class="name"><?php echo h($name); ?></div>
+              <div class="meta">
+                <span class="badge boy"><?php echo h($tr['boys']); ?></span>
+                <span class="badge secondary"><?php echo h($tr['subah']); ?></span>
+                <span class="badge secondary"><?php echo h($tr['students']); ?>: <?php echo (int)$students; ?></span>
+                <span class="badge primary"><?php echo h($tr['mumayyaz']); ?>: <?php echo (int)$mum; ?></span>
+                <span class="badge secondary"><?php echo h($tr['pct']); ?>: <?php echo (int)$p; ?>%</span>
               </div>
-            </div>
+            <?php endif; ?>
           </div>
+        </div>
 
-          <div class="card">
-            <div class="cardHeader">
-              <span><?php echo h($tr['section_gender']); ?></span>
-            </div>
-            <div class="cardBody">
-              <div class="list">
-                <div class="row">
-                  <div class="left">
-                    <div class="title"><?php echo h($tr['boys']); ?></div>
-                    <div class="meta"><span class="badge boy">Live</span></div>
-                  </div>
-                  <span class="badge boy"><?php echo (int)$stats['boys']; ?></span>
-                </div>
-                <div class="row">
-                  <div class="left">
-                    <div class="title"><?php echo h($tr['girls']); ?></div>
-                    <div class="meta"><span class="badge girl">Live</span></div>
-                  </div>
-                  <span class="badge girl"><?php echo (int)$stats['girls']; ?></span>
-                </div>
+        <!-- Boys asr top -->
+        <div class="card topHCard">
+          <div class="cardHead"><?php echo h($tr['top_halaqa_boys_asr']); ?></div>
+          <div class="cardPad">
+            <?php if (!$topBoysAsr): ?>
+              <div style="color:#777; font-weight:900;"><?php echo h($tr['no_data']); ?></div>
+            <?php else: ?>
+              <?php
+              $name = halaqa_display_name($topBoysAsr, $lang);
+              $students = safe_int($topBoysAsr['students_count']);
+              $mum = safe_int($topBoysAsr['mumayyaz_count']);
+              $p = pct($mum, $students);
+              ?>
+              <div class="name"><?php echo h($name); ?></div>
+              <div class="meta">
+                <span class="badge boy"><?php echo h($tr['boys']); ?></span>
+                <span class="badge secondary"><?php echo h($tr['asr']); ?></span>
+                <span class="badge secondary"><?php echo h($tr['students']); ?>: <?php echo (int)$students; ?></span>
+                <span class="badge primary"><?php echo h($tr['mumayyaz']); ?>: <?php echo (int)$mum; ?></span>
+                <span class="badge secondary"><?php echo h($tr['pct']); ?>: <?php echo (int)$p; ?>%</span>
               </div>
-            </div>
+            <?php endif; ?>
           </div>
+        </div>
+      </section>
 
-          <div class="card">
-            <div class="cardHeader">
-              <span><?php echo h($tr['section_top_students']); ?></span>
-            </div>
-            <div class="cardBody">
-              <div class="list">
-                <?php foreach ($sampleTop as $i => $s): ?>
-                  <div class="row">
-                    <div class="left">
-                      <div class="title">
-                        <?php echo h(($i + 1) . '. ' . ($lang === 'ur' ? $s['name_ur'] : $s['name_en'])); ?>
-                      </div>
-                    </div>
-                    <span class="badge primary"><?php echo (int)$s['score']; ?>/100</span>
-                  </div>
-                <?php endforeach; ?>
+      <!-- TOP STUDENT -->
+      <div class="sectionHead" style="margin-top:6px;">
+        <div class="sectionTitle"><?php echo h($tr['mumtaaz_talaba']); ?></div>
+      </div>
+
+      <section class="grid3" style="grid-template-columns: 1fr;">
+        <div class="card">
+          <div class="cardPad">
+            <?php if (trim($topStudentName) === '' || trim($topStudentScore) === ''): ?>
+              <div style="color:#777; font-weight:900;"><?php echo h($tr['no_results']); ?></div>
+            <?php else: ?>
+              <div style="font-weight:900; font-size:15px;"><?php echo h($topStudentName); ?></div>
+              <div style="margin-top:8px;">
+                <span class="badge primary"><?php echo h($tr['score']); ?>: <?php echo h($topStudentScore); ?></span>
               </div>
-            </div>
+            <?php endif; ?>
           </div>
-
         </div>
       </section>
 
@@ -1050,7 +1269,7 @@ $sampleTop = [
       if (!sb || !ov || !layout) return;
 
       if (isMobile()) {
-        var open = typeof forceOpen === 'boolean' ? forceOpen : !sb.classList.contains('open');
+        var open = (typeof forceOpen === 'boolean') ? forceOpen : !sb.classList.contains('open');
         if (open) {
           sb.classList.add('open');
           ov.classList.add('show');
@@ -1064,10 +1283,6 @@ $sampleTop = [
         ov.classList.remove('show');
       }
     }
-
-    document.getElementById('overlay')?.addEventListener('click', function() {
-      toggleSidebar(false);
-    });
 
     window.addEventListener('resize', function() {
       var sb = document.getElementById('sidebar');

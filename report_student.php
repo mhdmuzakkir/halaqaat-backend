@@ -51,22 +51,6 @@ try {
   $examResults = [];
 }
 
-// Get attendance summary
-$attendanceSummary = [];
-$stmt = $conn->prepare("
-  SELECT 
-    COUNT(*) as total_days,
-    SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days,
-    SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_days,
-    SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_days,
-    SUM(CASE WHEN status = 'excused' THEN 1 ELSE 0 END) as excused_days
-  FROM attendance
-  WHERE student_id = ?
-");
-$stmt->bind_param("i", $studentId);
-$stmt->execute();
-$attendanceSummary = $stmt->get_result()->fetch_assoc();
-
 // Calculate statistics
 $totalExams = count($examResults);
 $avgPercentage = $totalExams > 0 ? array_sum(array_column($examResults, 'percentage')) / $totalExams : 0;

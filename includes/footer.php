@@ -16,29 +16,42 @@ $isLoggedIn = !empty($_SESSION['user_id']);
 // Sidebar toggle
 const sideToggle = document.getElementById('sideToggle');
 const layout = document.getElementById('layout');
-const menuBtn = document.getElementById('menuBtn');
 const sidebar = document.getElementById('sidebar');
 const overlay = document.getElementById('overlay');
 
+// Desktop sidebar collapse toggle
 if (sideToggle) {
   sideToggle.addEventListener('click', () => {
     layout.classList.toggle('collapsed');
   });
 }
 
-if (menuBtn) {
-  menuBtn.addEventListener('click', () => {
-    sidebar.classList.add('open');
-    overlay.classList.add('show');
-  });
+// Mobile sidebar toggle
+function toggleSidebar() {
+  if (sidebar) {
+    sidebar.classList.toggle('open');
+    if (overlay) {
+      overlay.classList.toggle('show');
+    }
+  }
 }
 
-if (overlay) {
-  overlay.addEventListener('click', () => {
+// Close sidebar (for overlay click)
+function closeSidebar() {
+  if (sidebar) {
     sidebar.classList.remove('open');
+  }
+  if (overlay) {
     overlay.classList.remove('show');
-  });
+  }
 }
+
+// Close sidebar on window resize to desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 980) {
+    closeSidebar();
+  }
+});
 
 // Real-time search
 function setupSearch(inputId, containerSelector, itemSelector, searchFields) {

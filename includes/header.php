@@ -34,6 +34,9 @@ $baseUrl = '';
 </head>
 <body>
 <?php if ($isLoggedIn): ?>
+<!-- Mobile Overlay -->
+<div class="overlay" id="overlay" onclick="closeSidebar()"></div>
+
 <div class="layout" id="layout">
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar">
@@ -96,13 +99,10 @@ $baseUrl = '';
     </div>
   </aside>
 
-  <!-- Mobile Overlay -->
-  <div class="overlay" id="overlay"></div>
-
   <!-- Main Content -->
   <main class="main">
     <!-- Mobile Menu Button -->
-    <button class="menuBtn" id="menuBtn">☰</button>
+    <button class="menuBtn" id="menuBtn" onclick="toggleSidebar()">☰</button>
     
     <!-- Topbar -->
     <div class="topbar">

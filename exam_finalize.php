@@ -40,6 +40,15 @@ if ($selectedExam) {
   $stmt->execute();
   $examDetails = $stmt->get_result()->fetch_assoc();
   
+  // Get exam type
+  $examTitle = strtolower($examDetails['title'] ?? '');
+  $examType = 'qaida';
+  if (strpos($examTitle, 'حفظ') !== false || strpos($examTitle, 'hifz') !== false) {
+    $examType = 'hifz';
+  } elseif (strpos($examTitle, 'ناظرہ') !== false || strpos($examTitle, 'nazira') !== false) {
+    $examType = 'nazira';
+  }
+  
   // Get all results for this exam - grouped by halaqa
   $stmt = $conn->prepare("
     SELECT er.*, s.full_name_ur, s.shuba, s.mumayyaz as student_mumayyaz, h.name_ur as halaqa_name, h.gender as halaqa_gender
@@ -115,7 +124,18 @@ include __DIR__ . '/includes/header.php';
 <div class="msg msgError mb-3"><?php echo h($error); ?></div>
 <?php endif; ?>
 
-<?php if ($selectedExam && $examDetails && !empty($results)): ?>
+<?php if ($selectedExam && $examDetails && !empty($results)): 
+  // Determine exam type
+  $examTitle = strtolower($examDetails['title'] ?? '');
+  $examType = 'qaida';
+  if (strpos($examTitle, 'حفظ') !== false || strpos($examTitle, 'hifz') !== false) {
+    $examType = 'hifz';
+  } elseif (strpos($examTitle, 'ناظرہ') !== false || strpos($examTitle, 'nazira') !== false) {
+    $examType = 'nazira';
+  }
+  
+  $maxNisaab = ($examType === 'qaida') ? 70 : 60;
+?>
 <!-- Exam Info -->
 <div class="card mb-4" style="background: var(--secondary); color: #fff;">
   <div class="cardBody">
@@ -182,18 +202,30 @@ $mumtaazStudents = count(array_filter($results, fn($r) => $r['percentage'] >= 85
     <span><i class="bi bi-table me-2"></i><?php echo $lang === 'ur' ? 'امتحانی نتائج' : 'Exam Results'; ?></span>
   </div>
   <div class="cardBody p-0">
-    <div class="tableContainer">
-      <table class="table mb-0">
+    <div class="tableContainer" style="overflow-x: auto;">
+      <table class="table mb-0" style="min-width: 1000px;">
         <thead>
-          <tr>
-            <th><?php echo $lang === 'ur' ? 'درجہ' : 'Rank'; ?></th>
-            <th><?php echo h($tr['name']); ?></th>
-            <th><?php echo h($tr['halaqa']); ?></th>
-            <th><?php echo h($tr['shuba']); ?></th>
-            <th><?php echo $lang === 'ur' ? 'نمبر' : 'Marks'; ?></th>
-            <th><?php echo $lang === 'ur' ? 'فیصد' : '%'; ?></th>
-            <th><?php echo h($tr['remarks']); ?></th>
-            <th><?php echo h($tr['mumayyaz']); ?></th>
+          <tr style="background: var(--primary); color: #fff;">
+            <th rowspan="2"><?php echo $lang === 'ur' ? 'درجہ' : 'Rank'; ?></th>
+            <th rowspan="2"><?php echo h($tr['name']); ?></th>
+            <th rowspan="2"><?php echo h($tr['halaqa']); ?></th>
+            <th rowspan="2"><?php echo h($tr['shuba']); ?></th>
+            <th colspan="2" class="text-center"><?php echo h($tr['nisaab']); ?></th>
+            <th rowspan="2" class="text-center"><?php echo h($tr['nisaab']); ?><br>(<?php echo $maxNisaab; ?>)</th>
+            <?php if ($examType !== 'qaida'): ?>
+            <th rowspan="2" class="text-center"><?php echo h($tr['husn_sawt']); ?></th>
+            <?php endif; ?>
+            <th rowspan="2" class="text-center"><?php echo h($tr['tajweed']); ?></th>
+            <th rowspan="2" class="text-center"><?php echo h($tr['izaafat']); ?></th>
+            <th rowspan="2" class="text-center"><?php echo h($tr['sulook']); ?></th>
+            <th rowspan="2" class="text-center"><?php echo h($tr['total']); ?></th>
+            <th rowspan="2" class="text-center">%</th>
+            <th rowspan="2" class="text-center"><?php echo h($tr['taqdeer']); ?></th>
+            <th rowspan="2" class="text-center"><?php echo h($tr['mumayyaz']); ?></th>
+          </tr>
+          <tr style="background: var(--primary-light); color: #fff;">
+            <th class="text-center"><?php echo h($tr['from']); ?></th>
+            <th class="text-center"><?php echo h($tr['to']); ?></th>
           </tr>
         </thead>
         <tbody>
@@ -206,7 +238,7 @@ $mumtaazStudents = count(array_filter($results, fn($r) => $r['percentage'] >= 85
               $rank = 1;
           ?>
           <tr style="background: rgba(170, 129, 94, 0.15);">
-            <td colspan="8" class="fw-bold" style="padding: 8px 16px;">
+            <td colspan="16" class="fw-bold" style="padding: 8px 16px;">
               <i class="bi bi-building me-2"></i><?php echo h($currentHalaqa); ?> (<?php echo h($tr[$result['halaqa_gender']]); ?>)
             </td>
           </tr>
@@ -216,23 +248,30 @@ $mumtaazStudents = count(array_filter($results, fn($r) => $r['percentage'] >= 85
             <td>
               <?php echo h($result['full_name_ur']); ?>
               <?php if ($result['student_mumayyaz']): ?>
-                <span class="tag green ms-1"><i class="bi bi-star-fill"></i></span>
+                <span style="background: rgba(15,45,61,0.15); color: #0f2d3d; padding: 2px 6px; border-radius: 4px; font-size: 10px;"><i class="bi bi-star-fill"></i></span>
               <?php endif; ?>
             </td>
             <td><?php echo h($result['halaqa_name']); ?></td>
             <td><?php echo h($tr[$result['shuba']]); ?></td>
-            <td><?php echo $result['marks_obtained']; ?>/<?php echo $result['max_marks']; ?></td>
-            <td>
-              <span class="tag <?php echo $result['percentage'] >= 85 ? 'green' : ($result['percentage'] >= 70 ? 'blue' : ($result['percentage'] >= 55 ? 'orange' : ($result['percentage'] >= 40 ? 'tan' : 'pink'))); ?>">
+            <td class="text-center"><?php echo h($result['nisaab_from'] ?: '-'); ?></td>
+            <td class="text-center"><?php echo h($result['nisaab_to'] ?: '-'); ?></td>
+            <td class="text-center"><?php echo $result['nisaab_marks']; ?></td>
+            <?php if ($examType !== 'qaida'): ?>
+            <td class="text-center"><?php echo $result['husn_sawt']; ?></td>
+            <?php endif; ?>
+            <td class="text-center"><?php echo $result['tajweed']; ?></td>
+            <td class="text-center"><?php echo $result['izaafat']; ?></td>
+            <td class="text-center"><?php echo $result['sulook']; ?></td>
+            <td class="text-center fw-bold"><?php echo $result['marks_obtained']; ?></td>
+            <td class="text-center">
+              <span style="background: rgba(15,45,61,0.1); color: #0f2d3d; padding: 4px 8px; border-radius: 12px; font-size: 12px;">
                 <?php echo round($result['percentage'], 1); ?>%
               </span>
             </td>
-            <td class="fw-bold">
-              <?php echo h($result['remarks']); ?>
-            </td>
-            <td>
+            <td class="text-center fw-bold"><?php echo h($result['taqdeer']); ?></td>
+            <td class="text-center">
               <?php if ($result['mumayyaz']): ?>
-                <span class="tag green"><i class="bi bi-star-fill"></i> <?php echo h($tr['mumayyaz']); ?></span>
+                <span style="background: rgba(15,45,61,0.15); color: #0f2d3d; padding: 4px 8px; border-radius: 12px; font-size: 11px;"><i class="bi bi-star-fill"></i> <?php echo h($tr['mumayyaz']); ?></span>
               <?php else: ?>
                 <span class="text-muted">-</span>
               <?php endif; ?>

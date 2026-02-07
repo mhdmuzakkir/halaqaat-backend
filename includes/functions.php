@@ -191,6 +191,17 @@ function get_translations($lang) {
             'remarks' => 'تبصرہ',
             'finalize' => 'حتمی کریں',
             
+            // Exam Marks Entry
+            'nisaab' => 'نساب',
+            'from' => 'سے',
+            'to' => 'تک',
+            'husn_sawt' => 'حسن صوت',
+            'tajweed' => 'تجوید',
+            'izaafat' => 'اضافات',
+            'sulook' => 'سلوک',
+            'total' => 'کل',
+            'taqdeer' => 'تقدیر',
+            
             // Progress
             'progress' => 'پیش رفت',
             'takhti' => 'تختی',
@@ -300,6 +311,17 @@ function get_translations($lang) {
             'passing_marks' => 'Passing Marks',
             'remarks' => 'Remarks',
             'finalize' => 'Finalize',
+            
+            // Exam Marks Entry
+            'nisaab' => 'Nisaab',
+            'from' => 'From',
+            'to' => 'To',
+            'husn_sawt' => 'Husn-e-Sawt',
+            'tajweed' => 'Tajweed',
+            'izaafat' => 'Izaafat',
+            'sulook' => 'Sulook',
+            'total' => 'Total',
+            'taqdeer' => 'Taqdeer',
             
             // Progress
             'progress' => 'Progress',

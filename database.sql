@@ -85,10 +85,20 @@ CREATE TABLE exam_results (
     id INT AUTO_INCREMENT PRIMARY KEY,
     exam_id INT NOT NULL,
     student_id INT NOT NULL,
+    -- Nisaab details
+    nisaab_from VARCHAR(50) DEFAULT NULL,
+    nisaab_to VARCHAR(50) DEFAULT NULL,
+    -- Marks breakdown
+    nisaab_marks DECIMAL(5,2) DEFAULT 0,
+    husn_sawt DECIMAL(5,2) DEFAULT 0,
+    tajweed DECIMAL(5,2) DEFAULT 0,
+    izaafat DECIMAL(5,2) DEFAULT 0,
+    sulook DECIMAL(5,2) DEFAULT 0,
+    -- Totals
     marks_obtained DECIMAL(10,2) NOT NULL,
     max_marks DECIMAL(10,2) NOT NULL,
     percentage DECIMAL(5,2) NOT NULL,
-    remarks TEXT,
+    taqdeer VARCHAR(50) DEFAULT NULL,
     mumayyaz TINYINT(1) DEFAULT 0,
     status ENUM('draft', 'finalized') DEFAULT 'draft',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

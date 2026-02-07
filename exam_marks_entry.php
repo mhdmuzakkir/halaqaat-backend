@@ -68,8 +68,8 @@ if ($selectedExam) {
   }
 }
 
-// Calculate remarks based on percentage
-function getRemarks($percentage, $lang) {
+// Calculate taqdeer based on percentage
+function getTaqdeer($percentage, $lang) {
   if ($percentage >= 85) return $lang === 'ur' ? 'ممتاز' : 'Mumtaaz';
   if ($percentage >= 70) return $lang === 'ur' ? 'جيد جدًا' : 'Jayed Jiddan';
   if ($percentage >= 55) return $lang === 'ur' ? 'جيد' : 'Jayed';
@@ -80,8 +80,6 @@ function getRemarks($percentage, $lang) {
 // Save marks
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_marks'])) {
   $examId = intval($_POST['exam_id']);
-  $marksData = $_POST['marks'] ?? [];
-  $mumayyazData = $_POST['mumayyaz'] ?? [];
   
   $examTitle = strtolower($examDetails['title'] ?? '');
   $examType = 'qaida';
@@ -91,27 +89,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_marks'])) {
     $examType = 'nazira';
   }
   
+  // Max marks based on exam type
+  $maxNisaab = ($examType === 'qaida') ? 70 : 60;
+  $maxOthers = 10;
+  $maxTotal = 100;
+  
   $stmt = $conn->prepare("
-    INSERT INTO exam_results (exam_id, student_id, marks_obtained, max_marks, percentage, remarks, status, mumayyaz)
-    VALUES (?, ?, ?, ?, ?, ?, 'draft', ?)
+    INSERT INTO exam_results 
+    (exam_id, student_id, nisaab_from, nisaab_to, nisaab_marks, husn_sawt, tajweed, izaafat, sulook, 
+     marks_obtained, max_marks, percentage, taqdeer, status, mumayyaz)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?)
     ON DUPLICATE KEY UPDATE
+    nisaab_from = VALUES(nisaab_from),
+    nisaab_to = VALUES(nisaab_to),
+    nisaab_marks = VALUES(nisaab_marks),
+    husn_sawt = VALUES(husn_sawt),
+    tajweed = VALUES(tajweed),
+    izaafat = VALUES(izaafat),
+    sulook = VALUES(sulook),
     marks_obtained = VALUES(marks_obtained),
     percentage = VALUES(percentage),
-    remarks = VALUES(remarks),
+    taqdeer = VALUES(taqdeer),
     mumayyaz = VALUES(mumayyaz)
   ");
   
-  foreach ($marksData as $studentId => $marks) {
-    if ($marks !== '') {
-      $marksObtained = floatval($marks);
-      $maxMarks = $examDetails['max_marks'];
-      $percentage = ($marksObtained / $maxMarks) * 100;
-      $remarks = getRemarks($percentage, $lang);
-      $isMumayyaz = isset($mumayyazData[$studentId]) ? 1 : 0;
-      
-      $stmt->bind_param("iiddssi", $examId, $studentId, $marksObtained, $maxMarks, $percentage, $remarks, $isMumayyaz);
-      $stmt->execute();
-    }
+  foreach ($_POST['students'] as $studentId => $data) {
+    $nisaabFrom = $data['nisaab_from'] ?? '';
+    $nisaabTo = $data['nisaab_to'] ?? '';
+    $nisaabMarks = floatval($data['nisaab_marks'] ?? 0);
+    $husnSawt = floatval($data['husn_sawt'] ?? 0);
+    $tajweed = floatval($data['tajweed'] ?? 0);
+    $izaafat = floatval($data['izaafat'] ?? 0);
+    $sulook = floatval($data['sulook'] ?? 0);
+    $isMumayyaz = isset($data['mumayyaz']) ? 1 : 0;
+    
+    $totalMarks = $nisaabMarks + $husnSawt + $tajweed + $izaafat + $sulook;
+    $percentage = ($totalMarks / $maxTotal) * 100;
+    $taqdeer = getTaqdeer($percentage, $lang);
+    
+    $stmt->bind_param("iissdddddddsdi", 
+      $examId, $studentId, $nisaabFrom, $nisaabTo, $nisaabMarks, $husnSawt, $tajweed, $izaafat, $sulook,
+      $totalMarks, $maxTotal, $percentage, $taqdeer, $isMumayyaz
+    );
+    $stmt->execute();
   }
   
   // Update exam status to ongoing
@@ -173,6 +193,9 @@ include __DIR__ . '/includes/header.php';
   } elseif (strpos($examTitle, 'ناظرہ') !== false || strpos($examTitle, 'nazira') !== false) {
     $examType = 'nazira';
   }
+  
+  // Max marks based on exam type
+  $maxNisaab = ($examType === 'qaida') ? 70 : 60;
 ?>
 <!-- Exam Info -->
 <div class="card mb-4" style="background: var(--primary); color: #fff;">
@@ -185,7 +208,7 @@ include __DIR__ . '/includes/header.php';
         <i class="bi bi-calendar-event me-2"></i><?php echo date('M d, Y', strtotime($examDetails['exam_date'])); ?>
       </div>
       <div class="col-md-4">
-        <i class="bi bi-award me-2"></i><?php echo $lang === 'ur' ? 'کل نمبر:' : 'Max Marks:'; ?> <?php echo $examDetails['max_marks']; ?>
+        <i class="bi bi-award me-2"></i><?php echo $lang === 'ur' ? 'کل نمبر:' : 'Max Marks:'; ?> 100
       </div>
     </div>
     <div class="row mt-2">
@@ -222,18 +245,29 @@ include __DIR__ . '/includes/header.php';
       </div>
     </div>
     <div class="cardBody p-0">
-      <div class="tableContainer">
-        <table class="table mb-0">
+      <div class="tableContainer" style="overflow-x: auto;">
+        <table class="table mb-0" style="min-width: 1200px;">
           <thead>
-            <tr>
-              <th>#</th>
-              <th><?php echo h($tr['name']); ?></th>
-              <th><?php echo h($tr['halaqa']); ?></th>
-              <th><?php echo h($tr['shuba']); ?></th>
-              <th><?php echo $lang === 'ur' ? 'نمبر (' . $examDetails['max_marks'] . ')' : 'Marks (' . $examDetails['max_marks'] . ')'; ?></th>
-              <th><?php echo $lang === 'ur' ? 'فیصد' : '%'; ?></th>
-              <th><?php echo h($tr['remarks']); ?></th>
-              <th><?php echo h($tr['mumayyaz']); ?></th>
+            <tr style="background: var(--primary); color: #fff;">
+              <th rowspan="2">#</th>
+              <th rowspan="2"><?php echo h($tr['name']); ?></th>
+              <th rowspan="2"><?php echo h($tr['shuba']); ?></th>
+              <th colspan="2" class="text-center"><?php echo h($tr['nisaab']); ?></th>
+              <th rowspan="2" class="text-center"><?php echo h($tr['nisaab']); ?><br><small>(<?php echo $maxNisaab; ?>)</small></th>
+              <?php if ($examType !== 'qaida'): ?>
+              <th rowspan="2" class="text-center"><?php echo h($tr['husn_sawt']); ?><br><small>(10)</small></th>
+              <?php endif; ?>
+              <th rowspan="2" class="text-center"><?php echo h($tr['tajweed']); ?><br><small>(10)</small></th>
+              <th rowspan="2" class="text-center"><?php echo h($tr['izaafat']); ?><br><small>(10)</small></th>
+              <th rowspan="2" class="text-center"><?php echo h($tr['sulook']); ?><br><small>(10)</small></th>
+              <th rowspan="2" class="text-center"><?php echo h($tr['total']); ?><br><small>(100)</small></th>
+              <th rowspan="2" class="text-center">%</th>
+              <th rowspan="2" class="text-center"><?php echo h($tr['taqdeer']); ?></th>
+              <th rowspan="2" class="text-center"><?php echo h($tr['mumayyaz']); ?></th>
+            </tr>
+            <tr style="background: var(--primary-light); color: #fff;">
+              <th class="text-center"><?php echo h($tr['from']); ?></th>
+              <th class="text-center"><?php echo h($tr['to']); ?></th>
             </tr>
           </thead>
           <tbody>
@@ -244,54 +278,122 @@ include __DIR__ . '/includes/header.php';
                 $currentHalaqa = $student['halaqa_name'];
             ?>
             <tr style="background: rgba(170, 129, 94, 0.15);">
-              <td colspan="8" class="fw-bold" style="padding: 8px 16px;">
+              <td colspan="15" class="fw-bold" style="padding: 8px 16px;">
                 <i class="bi bi-building me-2"></i><?php echo h($currentHalaqa); ?> (<?php echo h($tr[$student['halaqa_gender']]); ?>)
               </td>
             </tr>
             <?php endif; 
               $existing = $existingResults[$student['id']] ?? null;
-              $marks = $existing['marks_obtained'] ?? '';
+              $nisaabFrom = $existing['nisaab_from'] ?? '';
+              $nisaabTo = $existing['nisaab_to'] ?? '';
+              $nisaabMarks = $existing['nisaab_marks'] ?? '';
+              $husnSawt = $existing['husn_sawt'] ?? '';
+              $tajweed = $existing['tajweed'] ?? '';
+              $izaafat = $existing['izaafat'] ?? '';
+              $sulook = $existing['sulook'] ?? '';
+              $totalMarks = $existing['marks_obtained'] ?? 0;
               $percentage = $existing['percentage'] ?? 0;
-              $remarks = $existing['remarks'] ?? '';
+              $taqdeer = $existing['taqdeer'] ?? '';
               $isMumayyaz = $existing['mumayyaz'] ?? 0;
+              
+              // Nisaab label based on shuba
+              $nisaabLabel = $tr['takhti'];
+              if ($student['shuba'] === 'hifz' || $student['shuba'] === 'nazira') {
+                $nisaabLabel = $tr['surah'];
+              }
             ?>
-            <tr>
+            <tr class="student-row" data-student="<?php echo $student['id']; ?>" data-max-nisaab="<?php echo $maxNisaab; ?>" data-type="<?php echo $examType; ?>">
               <td><?php echo $index + 1; ?></td>
               <td>
                 <?php echo h($student['full_name_ur']); ?>
                 <?php if ($student['mumayyaz']): ?>
-                  <span class="tag green ms-1"><i class="bi bi-star-fill"></i></span>
+                  <span class="tag" style="background: rgba(15,45,61,0.15); color: #0f2d3d;"><i class="bi bi-star-fill"></i></span>
                 <?php endif; ?>
               </td>
-              <td><?php echo h($student['halaqa_name']); ?></td>
               <td><?php echo h($tr[$student['shuba']]); ?></td>
               <td>
-                <input type="number" 
-                       class="formInput marks-input" 
-                       name="marks[<?php echo $student['id']; ?>]" 
-                       value="<?php echo $marks; ?>"
-                       min="0" 
-                       max="<?php echo $examDetails['max_marks']; ?>"
-                       step="0.5"
-                       data-max="<?php echo $examDetails['max_marks']; ?>"
-                       data-student="<?php echo $student['id']; ?>"
-                       style="width: 100px;" />
+                <input type="text" 
+                       class="formInput nisaab-from" 
+                       name="students[<?php echo $student['id']; ?>][nisaab_from]" 
+                       value="<?php echo h($nisaabFrom); ?>"
+                       placeholder="<?php echo h($nisaabLabel); ?>"
+                       style="width: 80px; font-size: 12px;" />
               </td>
               <td>
-                <span class="tag <?php echo $percentage >= 85 ? 'green' : ($percentage >= 70 ? 'blue' : ($percentage >= 55 ? 'orange' : ($percentage >= 40 ? 'tan' : 'pink'))); ?> percentage-badge" 
-                      id="percentage_<?php echo $student['id']; ?>">
+                <input type="text" 
+                       class="formInput nisaab-to" 
+                       name="students[<?php echo $student['id']; ?>][nisaab_to]" 
+                       value="<?php echo h($nisaabTo); ?>"
+                       placeholder="<?php echo h($nisaabLabel); ?>"
+                       style="width: 80px; font-size: 12px;" />
+              </td>
+              <td>
+                <input type="number" 
+                       class="formInput marks-input nisaab-marks" 
+                       name="students[<?php echo $student['id']; ?>][nisaab_marks]" 
+                       value="<?php echo $nisaabMarks; ?>"
+                       min="0" 
+                       max="<?php echo $maxNisaab; ?>"
+                       step="0.5"
+                       style="width: 70px;" />
+              </td>
+              <?php if ($examType !== 'qaida'): ?>
+              <td>
+                <input type="number" 
+                       class="formInput marks-input husn-sawt" 
+                       name="students[<?php echo $student['id']; ?>][husn_sawt]" 
+                       value="<?php echo $husnSawt; ?>"
+                       min="0" 
+                       max="10"
+                       step="0.5"
+                       style="width: 60px;" />
+              </td>
+              <?php endif; ?>
+              <td>
+                <input type="number" 
+                       class="formInput marks-input tajweed" 
+                       name="students[<?php echo $student['id']; ?>][tajweed]" 
+                       value="<?php echo $tajweed; ?>"
+                       min="0" 
+                       max="10"
+                       step="0.5"
+                       style="width: 60px;" />
+              </td>
+              <td>
+                <input type="number" 
+                       class="formInput marks-input izaafat" 
+                       name="students[<?php echo $student['id']; ?>][izaafat]" 
+                       value="<?php echo $izaafat; ?>"
+                       min="0" 
+                       max="10"
+                       step="0.5"
+                       style="width: 60px;" />
+              </td>
+              <td>
+                <input type="number" 
+                       class="formInput marks-input sulook" 
+                       name="students[<?php echo $student['id']; ?>][sulook]" 
+                       value="<?php echo $sulook; ?>"
+                       min="0" 
+                       max="10"
+                       step="0.5"
+                       style="width: 60px;" />
+              </td>
+              <td class="text-center">
+                <span class="fw-bold total-marks"><?php echo $totalMarks > 0 ? $totalMarks : '-'; ?></span>
+              </td>
+              <td class="text-center">
+                <span class="tag percentage-badge" style="background: rgba(15,45,61,0.1); color: #0f2d3d;">
                   <?php echo $percentage > 0 ? round($percentage, 1) . '%' : '-'; ?>
                 </span>
               </td>
-              <td>
-                <span id="remarks_<?php echo $student['id']; ?>" class="fw-bold">
-                  <?php echo $remarks ? h($remarks) : '-'; ?>
-                </span>
+              <td class="text-center">
+                <span class="fw-bold taqdeer"><?php echo $taqdeer ? h($taqdeer) : '-'; ?></span>
               </td>
-              <td>
-                <label class="formCheck" style="cursor: pointer; display: flex; align-items: center; justify-content: center;">
+              <td class="text-center">
+                <label style="cursor: pointer;">
                   <input type="checkbox" 
-                         name="mumayyaz[<?php echo $student['id']; ?>]" 
+                         name="students[<?php echo $student['id']; ?>][mumayyaz]" 
                          value="1" 
                          <?php echo $isMumayyaz ? 'checked' : ''; ?>
                          style="width: 20px; height: 20px;" />
@@ -316,38 +418,53 @@ include __DIR__ . '/includes/header.php';
 </form>
 
 <script>
-document.querySelectorAll('.marks-input').forEach(input => {
-  input.addEventListener('input', function() {
-    const maxMarks = parseFloat(this.dataset.max);
-    const marks = parseFloat(this.value) || 0;
-    const studentId = this.dataset.student;
-    const percentage = (marks / maxMarks) * 100;
-    
-    // Update percentage badge
-    const badge = document.getElementById('percentage_' + studentId);
-    if (marks > 0) {
-      badge.textContent = percentage.toFixed(1) + '%';
-      badge.className = 'tag percentage-badge ' + 
-        (percentage >= 85 ? 'green' : 
-         percentage >= 70 ? 'blue' : 
-         percentage >= 55 ? 'orange' : 
-         percentage >= 40 ? 'tan' : 'pink');
-    } else {
-      badge.textContent = '-';
-      badge.className = 'tag percentage-badge';
-    }
-    
-    // Update remarks
-    const remarksEl = document.getElementById('remarks_' + studentId);
-    let remarks = '-';
-    if (marks > 0) {
-      if (percentage >= 85) remarks = '<?php echo $lang === 'ur' ? 'ممتاز' : 'Mumtaaz'; ?>';
-      else if (percentage >= 70) remarks = '<?php echo $lang === 'ur' ? 'جيد جدًا' : 'Jayed Jiddan'; ?>';
-      else if (percentage >= 55) remarks = '<?php echo $lang === 'ur' ? 'جيد' : 'Jayed'; ?>';
-      else if (percentage >= 40) remarks = '<?php echo $lang === 'ur' ? 'مقبول' : 'Maqbool'; ?>';
-      else remarks = '<?php echo $lang === 'ur' ? 'ضعيف' : 'Zaeef'; ?>';
-    }
-    remarksEl.textContent = remarks;
+document.querySelectorAll('.student-row').forEach(row => {
+  const inputs = row.querySelectorAll('.marks-input');
+  const maxNisaab = parseFloat(row.dataset.maxNisaab);
+  const examType = row.dataset.type;
+  
+  inputs.forEach(input => {
+    input.addEventListener('input', function() {
+      // Validate max values
+      if (this.classList.contains('nisaab-marks') && parseFloat(this.value) > maxNisaab) {
+        this.value = maxNisaab;
+      }
+      if (!this.classList.contains('nisaab-marks') && parseFloat(this.value) > 10) {
+        this.value = 10;
+      }
+      
+      // Calculate total
+      const nisaab = parseFloat(row.querySelector('.nisaab-marks').value) || 0;
+      const husnSawt = examType !== 'qaida' ? (parseFloat(row.querySelector('.husn-sawt').value) || 0) : 0;
+      const tajweed = parseFloat(row.querySelector('.tajweed').value) || 0;
+      const izaafat = parseFloat(row.querySelector('.izaafat').value) || 0;
+      const sulook = parseFloat(row.querySelector('.sulook').value) || 0;
+      
+      const total = nisaab + husnSawt + tajweed + izaafat + sulook;
+      const percentage = (total / 100) * 100;
+      
+      // Update total
+      row.querySelector('.total-marks').textContent = total > 0 ? total.toFixed(1) : '-';
+      
+      // Update percentage
+      const badge = row.querySelector('.percentage-badge');
+      if (total > 0) {
+        badge.textContent = percentage.toFixed(1) + '%';
+      } else {
+        badge.textContent = '-';
+      }
+      
+      // Update taqdeer
+      let taqdeer = '-';
+      if (total > 0) {
+        if (percentage >= 85) taqdeer = '<?php echo $lang === 'ur' ? 'ممتاز' : 'Mumtaaz'; ?>';
+        else if (percentage >= 70) taqdeer = '<?php echo $lang === 'ur' ? 'جيد جدًا' : 'Jayed Jiddan'; ?>';
+        else if (percentage >= 55) taqdeer = '<?php echo $lang === 'ur' ? 'جيد' : 'Jayed'; ?>';
+        else if (percentage >= 40) taqdeer = '<?php echo $lang === 'ur' ? 'مقبول' : 'Maqbool'; ?>';
+        else taqdeer = '<?php echo $lang === 'ur' ? 'ضعيف' : 'Zaeef'; ?>';
+      }
+      row.querySelector('.taqdeer').textContent = taqdeer;
+    });
   });
 });
 </script>

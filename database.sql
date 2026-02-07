@@ -89,6 +89,7 @@ CREATE TABLE exam_results (
     max_marks DECIMAL(10,2) NOT NULL,
     percentage DECIMAL(5,2) NOT NULL,
     remarks TEXT,
+    mumayyaz TINYINT(1) DEFAULT 0,
     status ENUM('draft', 'finalized') DEFAULT 'draft',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

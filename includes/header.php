@@ -61,9 +61,32 @@ $baseUrl = '';
       <a href="students_manage.php" class="students <?php echo $currentPage === 'students_manage' ? 'active' : ''; ?>">
         <span class="txt"><?php echo h($tr['nav_students']); ?></span>
       </a>
+      <?php endif; ?>
+      
+      <!-- Management Menu - Different for each role -->
+      <?php if ($userRole === 'admin'): ?>
+      <!-- Admin sees all management options -->
       <a href="users_manage.php" class="ustaaz <?php echo $currentPage === 'users_manage' ? 'active' : ''; ?>">
-        <span class="txt"><?php echo h($tr['nav_ustaaz']); ?></span>
+        <span class="txt"><?php echo h($tr['nav_management']); ?></span>
       </a>
+      <?php elseif ($userRole === 'mushrif'): ?>
+      <!-- Mushrif sees limited management -->
+      <a href="users_manage.php" class="ustaaz <?php echo $currentPage === 'users_manage' ? 'active' : ''; ?>">
+        <span class="txt"><?php echo h($tr['nav_management']); ?></span>
+      </a>
+      <?php elseif ($userRole === 'ustaaz' || $userRole === 'ustadah'): ?>
+      <!-- Ustaaz sees their own info -->
+      <a href="users_manage.php?view=profile" class="ustaaz <?php echo $currentPage === 'users_manage' ? 'active' : ''; ?>">
+        <span class="txt"><?php echo h($tr['nav_management']); ?></span>
+      </a>
+      <?php elseif ($userRole === 'mumtahin'): ?>
+      <!-- Mumtahin sees their own info -->
+      <a href="users_manage.php?view=profile" class="ustaaz <?php echo $currentPage === 'users_manage' ? 'active' : ''; ?>">
+        <span class="txt"><?php echo h($tr['nav_management']); ?></span>
+      </a>
+      <?php endif; ?>
+      
+      <?php if ($userRole === 'admin' || $userRole === 'mushrif'): ?>
       <a href="exams_manage.php" class="exams <?php echo in_array($currentPage, ['exams_manage', 'exam_marks_entry', 'exam_finalize']) ? 'active' : ''; ?>">
         <span class="txt"><?php echo h($tr['nav_exams']); ?></span>
       </a>

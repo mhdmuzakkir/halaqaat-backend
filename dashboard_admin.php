@@ -213,6 +213,7 @@ include __DIR__ . '/includes/header.php';
           <div class="genderValue"><?php echo $boysCount; ?></div>
           <div class="genderLabel"><?php echo h($tr['boys']); ?></div>
         </div>
+        <div class="genderDivider"></div>
         <div class="genderStat">
           <div class="genderValue girl"><?php echo $girlsCount; ?></div>
           <div class="genderLabel"><?php echo h($tr['girls']); ?></div>
@@ -325,11 +326,9 @@ include __DIR__ . '/includes/header.php';
     </div>
     <div class="halaqaCardTags">
       <span class="tag <?php echo $halaqa['gender'] === 'baneen' ? 'blue' : 'pink'; ?>">
-        <i class="bi bi-<?php echo $halaqa['gender'] === 'baneen' ? 'gender-male' : 'gender-female'; ?>"></i>
         <?php echo h($tr[$halaqa['gender']]); ?>
       </span>
       <span class="tag orange">
-        <i class="bi bi-clock"></i>
         <?php echo h($tr[$halaqa['session']]); ?>
       </span>
       <?php if ($halaqa['mumayyaz_count'] > 0): ?>

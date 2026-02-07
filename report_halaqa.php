@@ -97,7 +97,7 @@ include __DIR__ . '/includes/header.php';
   </div>
   <div class="text-end">
     <a href="export.php?type=halaqa&id=<?php echo $halaqaId; ?>" class="btn btnPrimary mb-2">
-      <i class="bi bi-download me-2"></i><?php echo h($tr['export']); ?>
+      <i class="bi bi-download me-2"></i><?php echo $lang === 'ur' ? 'ایکسپورٹ' : 'Export'; ?>
     </a>
     <br>
     <button onclick="printPage()" class="pill">

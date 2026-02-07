@@ -99,19 +99,14 @@ include __DIR__ . '/includes/header.php';
     
     <form method="POST" action="">
       <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-12">
           <div class="formGroup">
-            <label class="formLabel"><?php echo $lang === 'ur' ? 'حلقہ کا نام (اردو)' : 'Halaqa Name (Urdu)'; ?> *</label>
+            <label class="formLabel"><?php echo $lang === 'ur' ? 'حلقہ کا نام' : 'Halaqa Name'; ?> *</label>
             <input type="text" name="name_ur" class="formInput" value="<?php echo h($halaqa['name_ur']); ?>" required />
           </div>
         </div>
-        <div class="col-md-6">
-          <div class="formGroup">
-            <label class="formLabel"><?php echo $lang === 'ur' ? 'حلقہ کا نام (انگریزی)' : 'Halaqa Name (English)'; ?></label>
-            <input type="text" name="name_en" class="formInput" value="<?php echo h($halaqa['name_en']); ?>" />
-          </div>
-        </div>
       </div>
+      <input type="hidden" name="name_en" value="" />
       
       <div class="row">
         <div class="col-md-6">

@@ -9,7 +9,7 @@ $tr = get_translations($lang);
 
 // Get halaqaat for dropdown
 $halaqaat = [];
-$result = $conn->query("SELECT id, name_ur, name_en, gender FROM halaqaat WHERE state = 'active' ORDER BY name_ur");
+$result = $conn->query("SELECT id, name_ur, gender FROM halaqaat WHERE state = 'active' ORDER BY name_ur");
 while ($row = $result->fetch_assoc()) {
   $halaqaat[] = $row;
 }
@@ -18,7 +18,6 @@ $editMode = false;
 $student = [
   'id' => '',
   'halaqa_id' => '',
-  'full_name_en' => '',
   'full_name_ur' => '',
   'gender' => 'baneen',
   'shuba' => 'qaida',
@@ -55,7 +54,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   
   $halaqaId = $_POST['halaqa_id'] ?: null;
   $fullNameUr = trim($_POST['full_name_ur'] ?? '');
-  $fullNameEn = trim($_POST['full_name_en'] ?? '');
   $gender = $_POST['gender'] ?? 'baneen';
   $shuba = $_POST['shuba'] ?? 'qaida';
   $mumayyaz = isset($_POST['mumayyaz']) ? 1 : 0;
@@ -68,10 +66,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($editMode) {
       $stmt = $conn->prepare("
         UPDATE students 
-        SET halaqa_id = ?, full_name_ur = ?, full_name_en = ?, gender = ?, shuba = ?, mumayyaz = ?, qaida_takhti = ?, surah_current = ?
+        SET halaqa_id = ?, full_name_ur = ?, gender = ?, shuba = ?, mumayyaz = ?, qaida_takhti = ?, surah_current = ?
         WHERE id = ?
       ");
-      $stmt->bind_param("isssssiii", $halaqaId, $fullNameUr, $fullNameEn, $gender, $shuba, $mumayyaz, $qaidaTakhti, $surahCurrent, $student['id']);
+      $stmt->bind_param("isssiiii", $halaqaId, $fullNameUr, $gender, $shuba, $mumayyaz, $qaidaTakhti, $surahCurrent, $student['id']);
       
       if ($stmt->execute()) {
         header("Location: students_manage.php?msg=updated");
@@ -81,10 +79,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     } else {
       $stmt = $conn->prepare("
-        INSERT INTO students (halaqa_id, full_name_ur, full_name_en, gender, shuba, mumayyaz, qaida_takhti, surah_current, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')
+        INSERT INTO students (halaqa_id, full_name_ur, gender, shuba, mumayyaz, qaida_takhti, surah_current, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
       ");
-      $stmt->bind_param("isssssii", $halaqaId, $fullNameUr, $fullNameEn, $gender, $shuba, $mumayyaz, $qaidaTakhti, $surahCurrent);
+      $stmt->bind_param("isssiis", $halaqaId, $fullNameUr, $gender, $shuba, $mumayyaz, $qaidaTakhti, $surahCurrent);
       
       if ($stmt->execute()) {
         header("Location: students_manage.php?msg=created");
@@ -98,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all students for list view
 $students = [];
-if (!$editMode && !isset($_GET['id'])) {
+if (!$editMode && !isset($_GET['id']) && !isset($_GET['action'])) {
   $query = "
     SELECT s.*, h.name_ur as halaqa_name
     FROM students s
@@ -115,7 +113,7 @@ if (!$editMode && !isset($_GET['id'])) {
 include __DIR__ . '/includes/header.php';
 ?>
 
-<?php if (!$editMode && !isset($_GET['id'])): ?>
+<?php if (!$editMode && !isset($_GET['id']) && !isset($_GET['action'])): ?>
 <!-- List View -->
 <div class="sectionHeader">
   <div class="sectionTitle"><?php echo h($tr['nav_students']); ?></div>
@@ -125,7 +123,7 @@ include __DIR__ . '/includes/header.php';
   </a>
 </div>
 
-<div class="searchWrap mb2" style="max-width: 400px;">
+<div class="searchWrap mb-3" style="max-width: 400px;">
   <i class="bi bi-search"></i>
   <input type="text" id="studentSearch" placeholder="<?php echo h($tr['search']); ?>" />
 </div>
@@ -149,9 +147,6 @@ include __DIR__ . '/includes/header.php';
           <tr class="student-item">
             <td>
               <strong><?php echo h($s['full_name_ur']); ?></strong>
-              <?php if ($s['full_name_en']): ?>
-                <br><small class="text-muted"><?php echo h($s['full_name_en']); ?></small>
-              <?php endif; ?>
             </td>
             <td><?php echo h($tr[$s['shuba']]); ?></td>
             <td><?php echo h($s['halaqa_name'] ?: '-'); ?></td>
@@ -196,21 +191,15 @@ setupSearch('studentSearch', '#studentsTable', '.student-item', ['td']);
   </div>
   <div class="cardBody">
     <?php if (!empty($error)): ?>
-    <div class="msg msgError mb2"><?php echo h($error); ?></div>
+    <div class="msg msgError mb-3"><?php echo h($error); ?></div>
     <?php endif; ?>
     
     <form method="POST" action="">
       <div class="row">
-        <div class="col-md-6">
+        <div class="col-md-12">
           <div class="formGroup">
-            <label class="formLabel"><?php echo $lang === 'ur' ? 'نام (اردو)' : 'Name (Urdu)'; ?> *</label>
+            <label class="formLabel"><?php echo h($tr['name']); ?> *</label>
             <input type="text" name="full_name_ur" class="formInput" value="<?php echo h($student['full_name_ur']); ?>" required />
-          </div>
-        </div>
-        <div class="col-md-6">
-          <div class="formGroup">
-            <label class="formLabel"><?php echo $lang === 'ur' ? 'نام (انگریزی)' : 'Name (English)'; ?></label>
-            <input type="text" name="full_name_en" class="formInput" value="<?php echo h($student['full_name_en']); ?>" />
           </div>
         </div>
       </div>
@@ -266,13 +255,13 @@ setupSearch('studentSearch', '#studentsTable', '.student-item', ['td']);
       </div>
       
       <div class="formGroup">
-        <label class="formCheck">
-          <input type="checkbox" name="mumayyaz" value="1" <?php echo $student['mumayyaz'] ? 'checked' : ''; ?> />
-          <span class="ms-2"><?php echo h($tr['mumayyaz']); ?></span>
+        <label class="formCheck" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" name="mumayyaz" value="1" <?php echo $student['mumayyaz'] ? 'checked' : ''; ?> style="width: 18px; height: 18px;" />
+          <span><?php echo h($tr['mumayyaz']); ?></span>
         </label>
       </div>
       
-      <div class="mt3">
+      <div class="mt-3">
         <button type="submit" class="btn btnPrimary">
           <i class="bi bi-check-lg"></i>
           <?php echo h($tr['save']); ?>

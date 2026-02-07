@@ -108,10 +108,24 @@ function get_translations($lang) {
             'nav_dashboard' => 'ڈیش بورڈ',
             'nav_halaqaat' => 'حلقات',
             'nav_students' => 'طلباء',
-            'nav_ustaaz' => 'اساتذہ',
+            'nav_management' => 'انتظامیہ',
             'nav_exams' => 'امتحانات',
             'nav_reports' => 'رپورٹس',
             'nav_settings' => 'ترتیبات',
+            
+            // Roles
+            'admin' => 'منتظم',
+            'mushrif' => 'مشرف',
+            'ustaaz' => 'استاذ',
+            'ustadah' => 'استاذہ',
+            'mumtahin' => 'ممتحن',
+            
+            // User management
+            'name' => 'نام',
+            'role' => 'عہدہ',
+            'phone' => 'فون',
+            'export' => 'ایکسپورٹ',
+            'date' => 'تاریخ',
             
             // Stats
             'total_halaqaat' => 'کل حلقات',
@@ -204,10 +218,24 @@ function get_translations($lang) {
             'nav_dashboard' => 'Dashboard',
             'nav_halaqaat' => 'Halaqaat',
             'nav_students' => 'Students',
-            'nav_ustaaz' => 'Ustaaz',
+            'nav_management' => 'Management',
             'nav_exams' => 'Exams',
             'nav_reports' => 'Reports',
             'nav_settings' => 'Settings',
+            
+            // Roles
+            'admin' => 'Admin',
+            'mushrif' => 'Mushrif',
+            'ustaaz' => 'Ustaaz',
+            'ustadah' => 'Ustadah',
+            'mumtahin' => 'Mumtahin',
+            
+            // User management
+            'name' => 'Name',
+            'role' => 'Role',
+            'phone' => 'Phone',
+            'export' => 'Export',
+            'date' => 'Date',
             
             // Stats
             'total_halaqaat' => 'Total Halaqaat',

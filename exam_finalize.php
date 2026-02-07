@@ -14,13 +14,13 @@ $tr = get_translations($lang);
 $success = '';
 $error = '';
 
-// Get ongoing exams
+// Get ongoing exams (exams with draft results)
 $exams = [];
 $result = $conn->query("
   SELECT e.*, COUNT(er.id) as entries_count
   FROM exams e
-  LEFT JOIN exam_results er ON er.exam_id = e.id
-  WHERE e.status = 'ongoing'
+  LEFT JOIN exam_results er ON er.exam_id = e.id AND er.status = 'draft'
+  WHERE e.status IN ('ongoing', 'upcoming')
   GROUP BY e.id
   HAVING entries_count > 0
   ORDER BY e.exam_date DESC
@@ -40,14 +40,14 @@ if ($selectedExam) {
   $stmt->execute();
   $examDetails = $stmt->get_result()->fetch_assoc();
   
-  // Get all results for this exam
+  // Get all results for this exam - grouped by halaqa
   $stmt = $conn->prepare("
-    SELECT er.*, s.full_name_ur, s.shuba, h.name_ur as halaqa_name, h.gender as halaqa_gender
+    SELECT er.*, s.full_name_ur, s.shuba, s.mumayyaz as student_mumayyaz, h.name_ur as halaqa_name, h.gender as halaqa_gender
     FROM exam_results er
     JOIN students s ON er.student_id = s.id
     JOIN halaqaat h ON s.halaqa_id = h.id
-    WHERE er.exam_id = ?
-    ORDER BY h.gender, er.percentage DESC
+    WHERE er.exam_id = ? AND er.status = 'draft'
+    ORDER BY h.gender, h.name_ur, er.percentage DESC
   ");
   $stmt->bind_param("i", $selectedExam);
   $stmt->execute();
@@ -139,9 +139,10 @@ include __DIR__ . '/includes/header.php';
 <!-- Results Summary -->
 <?php
 $totalStudents = count($results);
-$passedStudents = count(array_filter($results, fn($r) => $r['percentage'] >= $examDetails['passing_marks']));
+$passedStudents = count(array_filter($results, fn($r) => $r['percentage'] >= 40));
 $failedStudents = $totalStudents - $passedStudents;
 $avgPercentage = array_sum(array_column($results, 'percentage')) / $totalStudents;
+$mumtaazStudents = count(array_filter($results, fn($r) => $r['percentage'] >= 85));
 ?>
 
 <div class="row g-4 mb-4">
@@ -154,20 +155,20 @@ $avgPercentage = array_sum(array_column($results, 'percentage')) / $totalStudent
   </div>
   <div class="col-md-3">
     <div class="statCard text-center" style="background: var(--primary); color: #fff;">
+      <div class="statIcon mx-auto" style="background: rgba(255,255,255,0.2);"><i class="bi bi-trophy-fill"></i></div>
+      <div class="statValue"><?php echo $mumtaazStudents; ?></div>
+      <div class="statLabel"><?php echo $lang === 'ur' ? 'ممتاز' : 'Mumtaaz'; ?></div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="statCard text-center" style="background: var(--secondary); color: #fff;">
       <div class="statIcon mx-auto" style="background: rgba(255,255,255,0.2);"><i class="bi bi-check-circle-fill"></i></div>
       <div class="statValue"><?php echo $passedStudents; ?></div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'پاس' : 'Passed'; ?></div>
     </div>
   </div>
   <div class="col-md-3">
-    <div class="statCard text-center" style="background: var(--danger); color: #fff;">
-      <div class="statIcon mx-auto" style="background: rgba(255,255,255,0.2);"><i class="bi bi-x-circle-fill"></i></div>
-      <div class="statValue"><?php echo $failedStudents; ?></div>
-      <div class="statLabel"><?php echo $lang === 'ur' ? 'فیل' : 'Failed'; ?></div>
-    </div>
-  </div>
-  <div class="col-md-3">
-    <div class="statCard text-center" style="background: var(--secondary); color: #fff;">
+    <div class="statCard text-center" style="background: var(--accent); color: #fff;">
       <div class="statIcon mx-auto" style="background: rgba(255,255,255,0.2);"><i class="bi bi-percent"></i></div>
       <div class="statValue"><?php echo round($avgPercentage, 1); ?>%</div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'اوسط' : 'Average'; ?></div>
@@ -191,52 +192,51 @@ $avgPercentage = array_sum(array_column($results, 'percentage')) / $totalStudent
             <th><?php echo h($tr['shuba']); ?></th>
             <th><?php echo $lang === 'ur' ? 'نمبر' : 'Marks'; ?></th>
             <th><?php echo $lang === 'ur' ? 'فیصد' : '%'; ?></th>
-            <th><?php echo $lang === 'ur' ? 'حالت' : 'Status'; ?></th>
             <th><?php echo h($tr['remarks']); ?></th>
+            <th><?php echo h($tr['mumayyaz']); ?></th>
           </tr>
         </thead>
         <tbody>
           <?php 
           $rank = 1;
-          $currentGender = '';
+          $currentHalaqa = '';
           foreach ($results as $result): 
-            if ($currentGender !== $result['halaqa_gender']):
-              $currentGender = $result['halaqa_gender'];
+            if ($currentHalaqa !== $result['halaqa_name']):
+              $currentHalaqa = $result['halaqa_name'];
               $rank = 1;
           ?>
-          <tr style="background: rgba(201, 167, 124, 0.1);">
-            <td colspan="8" class="fw-bold text-center">
-              <i class="bi bi-<?php echo $currentGender === 'baneen' ? 'gender-male' : 'gender-female'; ?>"></i>
-              <?php echo h($tr[$currentGender]); ?>
+          <tr style="background: rgba(170, 129, 94, 0.15);">
+            <td colspan="8" class="fw-bold" style="padding: 8px 16px;">
+              <i class="bi bi-building me-2"></i><?php echo h($currentHalaqa); ?> (<?php echo h($tr[$result['halaqa_gender']]); ?>)
             </td>
           </tr>
-          <?php endif; 
-            $isPassed = $result['percentage'] >= $examDetails['passing_marks'];
-          ?>
+          <?php endif; ?>
           <tr>
             <td><span class="tag">#<?php echo $rank++; ?></span></td>
             <td>
               <?php echo h($result['full_name_ur']); ?>
-              <?php if ($rank <= 4): ?>
-                <i class="bi bi-trophy-fill" style="color: #ffc107;"></i>
+              <?php if ($result['student_mumayyaz']): ?>
+                <span class="tag green ms-1"><i class="bi bi-star-fill"></i></span>
               <?php endif; ?>
             </td>
             <td><?php echo h($result['halaqa_name']); ?></td>
             <td><?php echo h($tr[$result['shuba']]); ?></td>
             <td><?php echo $result['marks_obtained']; ?>/<?php echo $result['max_marks']; ?></td>
             <td>
-              <span class="tag <?php echo $isPassed ? 'green' : 'pink'; ?>">
+              <span class="tag <?php echo $result['percentage'] >= 85 ? 'green' : ($result['percentage'] >= 70 ? 'blue' : ($result['percentage'] >= 55 ? 'orange' : ($result['percentage'] >= 40 ? 'tan' : 'pink'))); ?>">
                 <?php echo round($result['percentage'], 1); ?>%
               </span>
             </td>
+            <td class="fw-bold">
+              <?php echo h($result['remarks']); ?>
+            </td>
             <td>
-              <?php if ($isPassed): ?>
-                <span class="tag green"><i class="bi bi-check-circle"></i> <?php echo $lang === 'ur' ? 'پاس' : 'Pass'; ?></span>
+              <?php if ($result['mumayyaz']): ?>
+                <span class="tag green"><i class="bi bi-star-fill"></i> <?php echo h($tr['mumayyaz']); ?></span>
               <?php else: ?>
-                <span class="tag pink"><i class="bi bi-x-circle"></i> <?php echo $lang === 'ur' ? 'فیل' : 'Fail'; ?></span>
+                <span class="text-muted">-</span>
               <?php endif; ?>
             </td>
-            <td><?php echo h($result['remarks'] ?: '-'); ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>

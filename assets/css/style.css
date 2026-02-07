@@ -1,13 +1,13 @@
 /* Kahaf Halaqaat - Main Stylesheet */
-/* Theme colors based on image: light beige, green, tan/brown */
+/* Theme colors: primary #0f2d3d, secondary #aa815e, charcoal black */
 
 :root {
-  --primary-dark: #0f2d3d;
-  --primary: #5a9;
-  --primary-light: #6bb38a;
-  --secondary: #c9a77c;
-  --secondary-dark: #b8956a;
-  --accent: #444444;
+  --primary-dark: #0a1f2a;
+  --primary: #0f2d3d;
+  --primary-light: #1a4a5e;
+  --secondary: #aa815e;
+  --secondary-dark: #8a6a4e;
+  --accent: #36454F;
   
   --bg: #f5f0e8;
   --bg-light: #faf8f4;
@@ -19,12 +19,12 @@
   --subah: #ff8c00;
   --asr: #b35a00;
   
-  --success: #5a9;
+  --success: #0f2d3d;
   --warning: #f0ad4e;
   --danger: #d9534f;
   
-  --sidebar: #3b3b3b;
-  --sidebar2: #2f2f2f;
+  --sidebar: #36454F;
+  --sidebar2: #2a353c;
 }
 
 /* Font Setup */
@@ -557,7 +557,7 @@ html[dir="rtl"] .progressValue {
 /* Gender Stats */
 .genderStats {
   display: flex;
-  gap: 20px;
+  gap: 40px;
   align-items: center;
   justify-content: center;
   padding: 20px 0;
@@ -565,10 +565,17 @@ html[dir="rtl"] .progressValue {
 
 .genderStat {
   text-align: center;
+  flex: 1;
+}
+
+.genderDivider {
+  width: 2px;
+  height: 60px;
+  background: linear-gradient(180deg, transparent, var(--border), transparent);
 }
 
 .genderValue {
-  font-size: 36px;
+  font-size: 42px;
   font-weight: 900;
   color: var(--boy);
 }
@@ -578,10 +585,10 @@ html[dir="rtl"] .progressValue {
 }
 
 .genderLabel {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: #666;
-  margin-top: 4px;
+  color: var(--accent);
+  margin-top: 8px;
 }
 
 /* Halaqa Cards */
@@ -682,9 +689,9 @@ html[dir="rtl"] .progressValue {
 }
 
 .tag.green {
-  background: rgba(90, 170, 119, 0.15);
-  border-color: rgba(90, 170, 119, 0.4);
-  color: #3d7a52;
+  background: rgba(15, 45, 61, 0.15);
+  border-color: rgba(15, 45, 61, 0.4);
+  color: #0f2d3d;
 }
 
 .tag.tan {
@@ -822,7 +829,7 @@ html[dir="rtl"] .progressValue {
 }
 
 .btnPrimary:hover {
-  background: #4a9969;
+  background: var(--primary-light);
 }
 
 .btnSecondary {

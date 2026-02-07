@@ -3,10 +3,25 @@ require_once __DIR__ . '/includes/db.php';
 require_once __DIR__ . '/includes/functions.php';
 
 require_login();
-require_role('admin');
 
 $lang = get_language();
 $tr = get_translations($lang);
+
+$userRole = $_SESSION['role'] ?? '';
+$userId = $_SESSION['user_id'] ?? 0;
+
+// Only admin and mushrif can access
+if ($userRole !== 'admin' && $userRole !== 'mushrif') {
+  header("Location: dashboard_admin.php");
+  exit;
+}
+
+// Get halaqaat for showing teacher assignments
+$halaqaat = [];
+$result = $conn->query("SELECT id, name_ur, ustaaz_user_id FROM halaqaat WHERE state = 'active'");
+while ($row = $result->fetch_assoc()) {
+  $halaqaat[$row['ustaaz_user_id']] = $row;
+}
 
 $editMode = false;
 $user = [
@@ -38,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   
   if ($action === 'delete') {
     $id = intval($_POST['user_id'] ?? 0);
-    if ($id == $_SESSION['user_id']) {
+    if ($id == $userId) {
       $error = $lang === 'ur' ? 'آپ اپنے آپ کو حذف نہیں کر سکتے۔' : 'You cannot delete yourself.';
     } else {
       $stmt = $conn->prepare("UPDATE users SET status = 'inactive' WHERE id = ?");
@@ -56,7 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $role = $_POST['role'] ?? 'ustaaz';
   $password = $_POST['password'] ?? '';
   
-  if (empty($fullName)) {
+  // Only admin can add admin, mushrif, mumtahin
+  if ($userRole !== 'admin' && in_array($role, ['admin', 'mushrif', 'mumtahin'])) {
+    $error = $lang === 'ur' ? 'آپ اس عہدے کا صارف نہیں بنا سکتے۔' : 'You cannot create a user with this role.';
+  } elseif (empty($fullName)) {
     $error = $lang === 'ur' ? 'نام ضروری ہے۔' : 'Name is required.';
   } elseif (empty($email)) {
     $error = $lang === 'ur' ? 'ای میل ضروری ہے۔' : 'Email is required.';
@@ -120,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch all users for list view
 $users = [];
-if (!$editMode && !isset($_GET['id'])) {
+if (!$editMode && !isset($_GET['id']) && !isset($_GET['action'])) {
   $result = $conn->query("SELECT * FROM users WHERE status = 'active' ORDER BY role, full_name");
   while ($row = $result->fetch_assoc()) {
     $users[] = $row;
@@ -130,17 +148,19 @@ if (!$editMode && !isset($_GET['id'])) {
 include __DIR__ . '/includes/header.php';
 ?>
 
-<?php if (!$editMode && !isset($_GET['id'])): ?>
+<?php if (!$editMode && !isset($_GET['id']) && !isset($_GET['action'])): ?>
 <!-- List View -->
 <div class="sectionHeader">
-  <div class="sectionTitle"><?php echo h($tr['nav_ustaaz']); ?></div>
+  <div class="sectionTitle"><?php echo h($tr['nav_management']); ?></div>
+  <?php if ($userRole === 'admin'): ?>
   <a href="users_manage.php?action=add" class="pill secondary">
     <i class="bi bi-plus-lg"></i>
     <?php echo h($tr['add_new']); ?>
   </a>
+  <?php endif; ?>
 </div>
 
-<div class="searchWrap mb2" style="max-width: 400px;">
+<div class="searchWrap mb-3" style="max-width: 400px;">
   <i class="bi bi-search"></i>
   <input type="text" id="userSearch" placeholder="<?php echo h($tr['search']); ?>" />
 </div>
@@ -154,16 +174,18 @@ include __DIR__ . '/includes/header.php';
             <th><?php echo h($tr['name']); ?></th>
             <th><?php echo h($tr['email']); ?></th>
             <th><?php echo h($tr['role']); ?></th>
-            <th><?php echo $lang === 'ur' ? 'فون' : 'Phone'; ?></th>
+            <th><?php echo h($tr['halaqa']); ?></th>
             <th></th>
           </tr>
         </thead>
         <tbody>
-          <?php foreach ($users as $u): ?>
+          <?php foreach ($users as $u): 
+            $assignedHalaqa = $halaqaat[$u['id']] ?? null;
+          ?>
           <tr class="user-item">
             <td>
               <strong><?php echo h($u['full_name']); ?></strong>
-              <?php if ($u['id'] == $_SESSION['user_id']): ?>
+              <?php if ($u['id'] == $userId): ?>
                 <span class="tag green" style="margin-left: 8px;"><?php echo $lang === 'ur' ? 'آپ' : 'You'; ?></span>
               <?php endif; ?>
             </td>
@@ -177,11 +199,21 @@ include __DIR__ . '/includes/header.php';
                 <?php echo h($tr[$u['role']]); ?>
               </span>
             </td>
-            <td><?php echo h($u['phone'] ?: '-'); ?></td>
             <td>
+              <?php if ($assignedHalaqa): ?>
+                <?php echo h($assignedHalaqa['name_ur']); ?>
+              <?php elseif ($u['role'] === 'ustaaz' || $u['role'] === 'ustadah'): ?>
+                <span class="text-muted"><?php echo $lang === 'ur' ? 'تفویض نہیں' : 'Not assigned'; ?></span>
+              <?php else: ?>
+                <span class="text-muted">-</span>
+              <?php endif; ?>
+            </td>
+            <td>
+              <?php if ($userRole === 'admin' || ($userRole === 'mushrif' && in_array($u['role'], ['ustaaz', 'ustadah']))): ?>
               <a href="users_manage.php?id=<?php echo $u['id']; ?>" class="pill" style="padding: 4px 10px;">
                 <i class="bi bi-pencil"></i>
               </a>
+              <?php endif; ?>
             </td>
           </tr>
           <?php endforeach; ?>
@@ -199,12 +231,12 @@ setupSearch('userSearch', '#usersTable', '.user-item', ['td']);
 <!-- Add/Edit Form -->
 <div class="card">
   <div class="cardHeader">
-    <span><?php echo $editMode ? h($tr['edit']) : h($tr['add_new']); ?> <?php echo h($tr['nav_ustaaz']); ?></span>
+    <span><?php echo $editMode ? h($tr['edit']) : h($tr['add_new']); ?> <?php echo h($tr['nav_management']); ?></span>
     <a href="users_manage.php" class="pill"><?php echo h($tr['cancel']); ?></a>
   </div>
   <div class="cardBody">
     <?php if (!empty($error)): ?>
-    <div class="msg msgError mb2"><?php echo h($error); ?></div>
+    <div class="msg msgError mb-3"><?php echo h($error); ?></div>
     <?php endif; ?>
     
     <form method="POST" action="">
@@ -228,17 +260,21 @@ setupSearch('userSearch', '#usersTable', '.user-item', ['td']);
           <div class="formGroup">
             <label class="formLabel"><?php echo h($tr['role']); ?> *</label>
             <select name="role" class="formSelect" required>
+              <?php if ($userRole === 'admin'): ?>
+              <!-- Admin can add all roles -->
               <option value="admin" <?php echo $user['role'] === 'admin' ? 'selected' : ''; ?>><?php echo h($tr['admin']); ?></option>
               <option value="mushrif" <?php echo $user['role'] === 'mushrif' ? 'selected' : ''; ?>><?php echo h($tr['mushrif']); ?></option>
+              <option value="mumtahin" <?php echo $user['role'] === 'mumtahin' ? 'selected' : ''; ?>><?php echo h($tr['mumtahin']); ?></option>
+              <?php endif; ?>
+              <!-- All can add ustaaz/ustadah -->
               <option value="ustaaz" <?php echo $user['role'] === 'ustaaz' ? 'selected' : ''; ?>><?php echo h($tr['ustaaz']); ?></option>
               <option value="ustadah" <?php echo $user['role'] === 'ustadah' ? 'selected' : ''; ?>><?php echo h($tr['ustadah']); ?></option>
-              <option value="mumtahin" <?php echo $user['role'] === 'mumtahin' ? 'selected' : ''; ?>><?php echo h($tr['mumtahin']); ?></option>
             </select>
           </div>
         </div>
         <div class="col-md-6">
           <div class="formGroup">
-            <label class="formLabel"><?php echo $lang === 'ur' ? 'فون' : 'Phone'; ?></label>
+            <label class="formLabel"><?php echo h($tr['phone']); ?></label>
             <input type="tel" name="phone" class="formInput" value="<?php echo h($user['phone']); ?>" />
           </div>
         </div>
@@ -261,7 +297,7 @@ setupSearch('userSearch', '#usersTable', '.user-item', ['td']);
         <input type="password" name="password" class="formInput" <?php echo $editMode ? '' : 'required'; ?> />
       </div>
       
-      <div class="mt3">
+      <div class="mt-3">
         <button type="submit" class="btn btnPrimary">
           <i class="bi bi-check-lg"></i>
           <?php echo h($tr['save']); ?>
@@ -269,7 +305,7 @@ setupSearch('userSearch', '#usersTable', '.user-item', ['td']);
         <a href="users_manage.php" class="btn" style="background: #e9ecef; color: #333;">
           <?php echo h($tr['cancel']); ?>
         </a>
-        <?php if ($editMode && $user['id'] != $_SESSION['user_id']): ?>
+        <?php if ($editMode && $user['id'] != $userId): ?>
         <button type="submit" name="action" value="delete" class="btn btnDanger" style="float: right;" onclick="return confirmDelete()">
           <i class="bi bi-trash"></i>
           <?php echo h($tr['delete']); ?>

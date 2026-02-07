@@ -6,6 +6,7 @@ define('DB_HOST', 'localhost');
 define('DB_NAME', 'mdmunazir_linuxproguru');
 define('DB_USER', 'mdmunazir_linuxproguru');
 define('DB_PASS', 'Vikhara@548');
+
 define('SESSION_NAME', 'kahaf_session');
 
 // Create connection

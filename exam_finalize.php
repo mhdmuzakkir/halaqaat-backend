@@ -67,32 +67,55 @@ if ($selectedExam) {
 }
 
 // Finalize exam
+// Finalize exam
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_exam'])) {
-  $examId = intval($_POST['exam_id']);
-  
-  // Update all results to finalized
-  $stmt = $conn->prepare("UPDATE exam_results SET status = 'finalized' WHERE exam_id = ?");
-  $stmt->bind_param("i", $examId);
-  
-  if ($stmt->execute()) {
-    // Update exam status to finalized
-    $stmt = $conn->prepare("UPDATE exams SET status = 'finalized' WHERE id = ?");
-    $stmt->bind_param("i", $examId);
-    $stmt->execute();
-    
-    header('Location: exam_finalize.php?success=1');
-    exit;
+  // (Optional but helpful) prevent "headers already sent" problems
+  if (!ob_get_level()) { ob_start(); }
+
+  $examId = intval($_POST['exam_id'] ?? 0);
+
+  if ($examId <= 0) {
+    $error = $lang === 'ur' ? 'غلط امتحان منتخب ہوا ہے۔' : 'Invalid exam selected.';
   } else {
-    $error = $lang === 'ur' ? 'کچھ غلط ہو گیا۔' : 'Something went wrong.';
+    // Show real mysqli errors (temporarily) — best place is db.php, but ok here too
+    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
+    try {
+      $conn->begin_transaction();
+
+      // Finalize ONLY draft results for this exam
+      $stmt = $conn->prepare("UPDATE exam_results SET status='finalized' WHERE exam_id=? AND status='draft'");
+      $stmt->bind_param("i", $examId);
+      $stmt->execute();
+      $affected = $stmt->affected_rows;
+      $stmt->close();
+
+      // If no rows were finalized, you can decide what to do (optional)
+      // if ($affected <= 0) throw new Exception("No draft results found to finalize.");
+
+      // Update exam status
+      $stmt = $conn->prepare("UPDATE exams SET status='finalized' WHERE id=?");
+      $stmt->bind_param("i", $examId);
+      $stmt->execute();
+      $stmt->close();
+
+      $conn->commit();
+
+      header('Location: exam_finalize.php?success=1');
+      exit;
+
+    } catch (Throwable $e) {
+      if ($conn && $conn->errno === 0) {
+        // ignore
+      }
+      if ($conn) { $conn->rollback(); }
+
+      // Show the actual reason (for admin only)
+      $error = ($lang === 'ur' ? 'کچھ غلط ہو گیا: ' : 'Something went wrong: ') . $e->getMessage();
+    }
   }
 }
 
-if (isset($_GET['success'])) {
-  $success = $lang === 'ur' ? 'امتحان کامیابی سے حتمی شکل میں آ گیا۔' : 'Exam finalized successfully.';
-}
-
-include __DIR__ . '/includes/header.php';
-?>
 
 <!-- Exam Selector -->
 <div class="card mb-4">

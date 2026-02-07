@@ -3,9 +3,9 @@
 
 // Database credentials - UPDATE THESE FOR YOUR SERVER
 define('DB_HOST', 'localhost');
-define('DB_USER', 'root');
-define('DB_PASS', '');
-define('DB_NAME', 'kahaf_halaqaat');
+define('DB_NAME', 'mdmunazir_linuxproguru');
+define('DB_USER', 'mdmunazir_linuxproguru');
+define('DB_PASS', 'Vikhara@548');
 define('SESSION_NAME', 'kahaf_session');
 
 // Create connection

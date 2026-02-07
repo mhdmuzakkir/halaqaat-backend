@@ -67,10 +67,11 @@ if ($selectedExam) {
 }
 
 // Finalize exam
-// Finalize exam
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_exam'])) {
   // (Optional but helpful) prevent "headers already sent" problems
-  if (!ob_get_level()) { ob_start(); }
+  if (!ob_get_level()) {
+    ob_start();
+  }
 
   $examId = intval($_POST['exam_id'] ?? 0);
 
@@ -103,12 +104,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_exam'])) {
 
       header('Location: exam_finalize.php?success=1');
       exit;
-
     } catch (Throwable $e) {
       if ($conn && $conn->errno === 0) {
         // ignore
       }
-      if ($conn) { $conn->rollback(); }
+      if ($conn) {
+        $conn->rollback();
+      }
 
       // Show the actual reason (for admin only)
       $error = ($lang === 'ur' ? 'کچھ غلط ہو گیا: ' : 'Something went wrong: ') . $e->getMessage();
@@ -116,6 +118,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['finalize_exam'])) {
   }
 }
 
+if (isset($_GET['success'])) {
+  $success = $lang === 'ur' ? 'امتحان کامیابی سے حتمی شکل میں آ گیا۔' : 'Exam finalized successfully.';
+}
+
+include __DIR__ . '/includes/header.php';
+?>
 
 <!-- Exam Selector -->
 <div class="card mb-4">

@@ -252,8 +252,8 @@ include __DIR__ . '/includes/header.php';
               <th rowspan="2">#</th>
               <th rowspan="2"><?php echo h($tr['name']); ?></th>
               <th rowspan="2"><?php echo h($tr['shuba']); ?></th>
-              <th colspan="2" class="text-center"><?php echo h($tr['nisaab']); ?></th>
-              <th rowspan="2" class="text-center"><?php echo h($tr['nisaab']); ?><br><small>(<?php echo $maxNisaab; ?>)</small></th>
+              <th colspan="2" class="text-center"><?php echo $lang === 'ur' ? 'نصاب' : 'Nisaab'; ?></th>
+              <th rowspan="2" class="text-center"><?php echo $lang === 'ur' ? 'نصاب' : 'Nisaab'; ?><br><small>(<?php echo $maxNisaab; ?>)</small></th>
               <?php if ($examType !== 'qaida'): ?>
               <th rowspan="2" class="text-center"><?php echo h($tr['husn_sawt']); ?><br><small>(10)</small></th>
               <?php endif; ?>

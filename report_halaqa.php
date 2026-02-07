@@ -90,16 +90,12 @@ include __DIR__ . '/includes/header.php';
 ?>
 
 <!-- Page Header -->
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="sectionHeader">
   <div>
-    <h2 class="heroTitle" style="color: var(--accent);"><?php echo h($halaqa['name_ur']); ?></h2>
-    <p class="heroSub" style="color: #666;"><?php echo h($tr[$halaqa['gender']]); ?> — <?php echo h($tr[$halaqa['session']]); ?></p>
+    <h2 class="sectionTitle"><?php echo h($halaqa['name_ur']); ?></h2>
+    <p style="color: #666; margin: 0;"><?php echo h($tr[$halaqa['gender']]); ?> — <?php echo h($tr[$halaqa['session']]); ?></p>
   </div>
-  <div class="text-end">
-    <a href="export.php?type=halaqa&id=<?php echo $halaqaId; ?>" class="btn btnPrimary mb-2">
-      <i class="bi bi-download me-2"></i><?php echo $lang === 'ur' ? 'ایکسپورٹ' : 'Export'; ?>
-    </a>
-    <br>
+  <div>
     <button onclick="printPage()" class="pill">
       <i class="bi bi-printer me-2"></i><?php echo $lang === 'ur' ? 'پرنٹ' : 'Print'; ?>
     </button>
@@ -136,28 +132,28 @@ include __DIR__ . '/includes/header.php';
 <div class="row g-4 mb-4">
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon primary mx-auto"><i class="bi bi-people-fill"></i></div>
+      <div class="statIcon" style="background: rgba(15, 45, 61, 0.2);"><i class="bi bi-people-fill" style="color: #0f2d3d;"></i></div>
       <div class="statValue"><?php echo $totalStudents; ?></div>
       <div class="statLabel"><?php echo h($tr['total_students']); ?></div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon mx-auto" style="background: rgba(255, 193, 7, 0.3);"><i class="bi bi-star-fill" style="color: #ffc107;"></i></div>
+      <div class="statIcon" style="background: rgba(255, 193, 7, 0.3);"><i class="bi bi-star-fill" style="color: #ffc107;"></i></div>
       <div class="statValue"><?php echo $mumayyizeenCount; ?></div>
       <div class="statLabel"><?php echo h($tr['total_mumayyizeen']); ?></div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon secondary mx-auto"><i class="bi bi-percent"></i></div>
+      <div class="statIcon" style="background: rgba(170, 129, 94, 0.2);"><i class="bi bi-percent" style="color: #aa815e;"></i></div>
       <div class="statValue"><?php echo round($avgPercentage, 1); ?>%</div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'اوسط فیصد' : 'Avg Percentage'; ?></div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon success mx-auto"><i class="bi bi-calendar-check"></i></div>
+      <div class="statIcon" style="background: rgba(23, 162, 184, 0.2);"><i class="bi bi-calendar-check" style="color: #17a2b8;"></i></div>
       <div class="statValue"><?php echo $attendanceSummary['total_days'] ?? 0; ?></div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'حاضری کے دن' : 'Attendance Days'; ?></div>
     </div>
@@ -201,7 +197,7 @@ include __DIR__ . '/includes/header.php';
             </td>
             <td>
               <?php if ($student['mumayyaz']): ?>
-                <span class="tag green"><i class="bi bi-star-fill"></i> <?php echo h($tr['mumayyaz']); ?></span>
+                <span class="tag" style="background: rgba(15,45,61,0.15); color: #0f2d3d;"><i class="bi bi-star-fill"></i> <?php echo h($tr['mumayyaz']); ?></span>
               <?php else: ?>
                 <span class="text-muted">-</span>
               <?php endif; ?>
@@ -238,7 +234,7 @@ include __DIR__ . '/includes/header.php';
         <thead>
           <tr>
             <th><?php echo $lang === 'ur' ? 'امتحان' : 'Exam'; ?></th>
-            <th><?php echo h($tr['date']); ?></th>
+            <th><?php echo $lang === 'ur' ? 'تاریخ' : 'Date'; ?></th>
             <th><?php echo $lang === 'ur' ? 'طلباء' : 'Students'; ?></th>
             <th><?php echo $lang === 'ur' ? 'اوسط %' : 'Avg %'; ?></th>
           </tr>

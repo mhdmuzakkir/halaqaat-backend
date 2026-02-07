@@ -192,7 +192,7 @@ function get_translations($lang) {
             'finalize' => 'حتمی کریں',
             
             // Exam Marks Entry
-            'nisaab' => 'نساب',
+            'nisaab' => 'نصاب',
             'from' => 'سے',
             'to' => 'تک',
             'husn_sawt' => 'حسن صوت',

@@ -30,20 +30,25 @@ if (!$student) {
   exit;
 }
 
-// Get exam results
+// Get exam results - use taqdeer if available, otherwise use remarks
 $examResults = [];
-$stmt = $conn->prepare("
-  SELECT er.*, e.title as exam_title, e.exam_date, e.max_marks as exam_max_marks, e.passing_marks
-  FROM exam_results er
-  JOIN exams e ON er.exam_id = e.id
-  WHERE er.student_id = ? AND er.status = 'finalized'
-  ORDER BY e.exam_date DESC
-");
-$stmt->bind_param("i", $studentId);
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-  $examResults[] = $row;
+try {
+  $stmt = $conn->prepare("
+    SELECT er.*, e.title as exam_title, e.exam_date, e.max_marks as exam_max_marks
+    FROM exam_results er
+    JOIN exams e ON er.exam_id = e.id
+    WHERE er.student_id = ? AND er.status = 'finalized'
+    ORDER BY e.exam_date DESC
+  ");
+  $stmt->bind_param("i", $studentId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  while ($row = $result->fetch_assoc()) {
+    $examResults[] = $row;
+  }
+} catch (Exception $e) {
+  // If query fails, try without taqdeer
+  $examResults = [];
 }
 
 // Get attendance summary
@@ -67,7 +72,7 @@ $totalExams = count($examResults);
 $avgPercentage = $totalExams > 0 ? array_sum(array_column($examResults, 'percentage')) / $totalExams : 0;
 $highestPercentage = $totalExams > 0 ? max(array_column($examResults, 'percentage')) : 0;
 $lowestPercentage = $totalExams > 0 ? min(array_column($examResults, 'percentage')) : 0;
-$passedExams = count(array_filter($examResults, fn($r) => $r['percentage'] >= $r['passing_marks']));
+$passedExams = count(array_filter($examResults, fn($r) => $r['percentage'] >= 40));
 
 $totalAttendanceDays = $attendanceSummary['total_days'] ?? 0;
 $attendancePercentage = $totalAttendanceDays > 0 
@@ -78,18 +83,11 @@ include __DIR__ . '/includes/header.php';
 ?>
 
 <!-- Page Header -->
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="sectionHeader">
   <div>
-    <h2 class="heroTitle" style="color: var(--accent);"><?php echo h($student['full_name_ur']); ?></h2>
-    <?php if ($student['full_name_en']): ?>
-      <p class="heroSub" style="color: #666;"><?php echo h($student['full_name_en']); ?></p>
-    <?php endif; ?>
+    <h2 class="sectionTitle"><?php echo h($student['full_name_ur']); ?></h2>
   </div>
-  <div class="text-end">
-    <a href="export.php?type=student&id=<?php echo $studentId; ?>" class="btn btnPrimary mb-2">
-      <i class="bi bi-download me-2"></i><?php echo h($tr['export']); ?>
-    </a>
-    <br>
+  <div>
     <button onclick="printPage()" class="pill">
       <i class="bi bi-printer me-2"></i><?php echo $lang === 'ur' ? 'پرنٹ' : 'Print'; ?>
     </button>
@@ -114,7 +112,7 @@ include __DIR__ . '/includes/header.php';
       </div>
       <div class="col-md-3 mb-3">
         <?php if ($student['mumayyaz']): ?>
-          <span class="tag green fs-6"><i class="bi bi-star-fill me-1"></i> <?php echo h($tr['mumayyaz']); ?></span>
+          <span class="tag" style="background: rgba(15,45,61,0.15); color: #0f2d3d;"><i class="bi bi-star-fill me-1"></i> <?php echo h($tr['mumayyaz']); ?></span>
         <?php endif; ?>
       </div>
     </div>
@@ -141,14 +139,14 @@ include __DIR__ . '/includes/header.php';
 <div class="row g-4 mb-4">
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon primary mx-auto"><i class="bi bi-file-text-fill"></i></div>
+      <div class="statIcon" style="background: rgba(15, 45, 61, 0.2);"><i class="bi bi-file-text-fill" style="color: #0f2d3d;"></i></div>
       <div class="statValue"><?php echo $totalExams; ?></div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'امتحانات' : 'Exams'; ?></div>
     </div>
   </div>
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon secondary mx-auto"><i class="bi bi-percent"></i></div>
+      <div class="statIcon" style="background: rgba(170, 129, 94, 0.2);"><i class="bi bi-percent" style="color: #aa815e;"></i></div>
       <div class="statValue"><?php echo round($avgPercentage, 1); ?>%</div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'اوسط' : 'Average'; ?></div>
     </div>
@@ -162,7 +160,7 @@ include __DIR__ . '/includes/header.php';
   </div>
   <div class="col-md-3">
     <div class="statCard text-center">
-      <div class="statIcon mx-auto" style="background: rgba(23, 162, 184, 0.2);"><i class="bi bi-calendar-check" style="color: #17a2b8;"></i></div>
+      <div class="statIcon" style="background: rgba(23, 162, 184, 0.2);"><i class="bi bi-calendar-check" style="color: #17a2b8;"></i></div>
       <div class="statValue"><?php echo $attendancePercentage; ?>%</div>
       <div class="statLabel"><?php echo $lang === 'ur' ? 'حاضری' : 'Attendance'; ?></div>
     </div>
@@ -182,16 +180,18 @@ include __DIR__ . '/includes/header.php';
           <tr>
             <th>#</th>
             <th><?php echo $lang === 'ur' ? 'امتحان' : 'Exam'; ?></th>
-            <th><?php echo h($tr['date']); ?></th>
+            <th><?php echo $lang === 'ur' ? 'تاریخ' : 'Date'; ?></th>
             <th><?php echo $lang === 'ur' ? 'نمبر' : 'Marks'; ?></th>
             <th><?php echo $lang === 'ur' ? 'فیصد' : 'Percentage'; ?></th>
             <th><?php echo $lang === 'ur' ? 'حالت' : 'Status'; ?></th>
-            <th><?php echo h($tr['remarks']); ?></th>
+            <th><?php echo h($tr['taqdeer']); ?></th>
           </tr>
         </thead>
         <tbody>
           <?php foreach ($examResults as $index => $result): 
-            $isPassed = $result['percentage'] >= $result['passing_marks'];
+            $isPassed = $result['percentage'] >= 40;
+            // Use taqdeer if available, otherwise use remarks
+            $taqdeer = $result['taqdeer'] ?? $result['remarks'] ?? '-';
           ?>
           <tr>
             <td><?php echo $index + 1; ?></td>
@@ -205,12 +205,12 @@ include __DIR__ . '/includes/header.php';
             </td>
             <td>
               <?php if ($isPassed): ?>
-                <span class="tag green"><i class="bi bi-check-circle"></i> <?php echo $lang === 'ur' ? 'پاس' : 'Pass'; ?></span>
+                <span class="tag" style="background: rgba(15,45,61,0.15); color: #0f2d3d;"><i class="bi bi-check-circle"></i> <?php echo $lang === 'ur' ? 'پاس' : 'Pass'; ?></span>
               <?php else: ?>
-                <span class="tag pink"><i class="bi bi-x-circle"></i> <?php echo $lang === 'ur' ? 'فیل' : 'Fail'; ?></span>
+                <span class="tag" style="background: rgba(217,83,79,0.15); color: #d9534f;"><i class="bi bi-x-circle"></i> <?php echo $lang === 'ur' ? 'فیل' : 'Fail'; ?></span>
               <?php endif; ?>
             </td>
-            <td><?php echo h($result['remarks'] ?: '-'); ?></td>
+            <td class="fw-bold"><?php echo h($taqdeer); ?></td>
           </tr>
           <?php endforeach; ?>
         </tbody>
@@ -232,8 +232,8 @@ include __DIR__ . '/includes/header.php';
         datasets: [{
           label: '<?php echo $lang === 'ur' ? "فیصد" : "Percentage"; ?>',
           data: <?php echo json_encode(array_map(fn($r) => round($r['percentage'], 1), array_reverse($examResults))); ?>,
-          borderColor: '#c9a77c',
-          backgroundColor: 'rgba(201, 167, 124, 0.1)',
+          borderColor: '#aa815e',
+          backgroundColor: 'rgba(170, 129, 94, 0.1)',
           fill: true,
           tension: 0.4
         }]
@@ -303,7 +303,7 @@ include __DIR__ . '/includes/header.php';
         <strong><?php echo $attendancePercentage; ?>%</strong>
       </div>
       <div class="progressBar" style="height: 20px;">
-        <div class="progress-fill" style="width: <?php echo $attendancePercentage; ?>%; background: #17a2b8; height: 100%; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700;">
+        <div class="progressFill" style="width: <?php echo $attendancePercentage; ?>%; background: #17a2b8; height: 100%; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700;">
           <?php echo $attendancePercentage; ?>%
         </div>
       </div>

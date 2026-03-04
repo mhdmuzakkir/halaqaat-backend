@@ -9,5 +9,7 @@
             /www/halaqaat.linuxproguru.com/tasks ./tasks
           quit
           EOF
+
+
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}

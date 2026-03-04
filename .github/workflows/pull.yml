@@ -1,14 +1,22 @@
-            - name: Mirror /tasks from FTP → repo
-        run: |
-          lftp "ftp://halaqaat.linuxproguru.com" -u "mdmunazir","${FTP_PASSWORD}" << 'EOF'
-          set ssl:verify-certificate no
-          mirror \
-            --verbose \
-            --only-newer \
-            --delete \
-            /tasks ./tasks
-          quit
-          EOF
+name: Pull from FTP test
 
-        env:
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+on:
+  workflow_dispatch:    # Manual trigger button
+  schedule:
+    - cron: "*/30 * * * *"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Test FTP + lftp
+      env:
+        FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+      run: |
+        sudo apt update
+        sudo apt install -y lftp
+        echo "Testing FTP connection..."
+        lftp -u mdmunazir,"$FTP_PASSWORD" halaqaat.linuxproguru.com -e "ls; quit"

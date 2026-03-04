@@ -1,16 +1,3 @@
-name: Pull from FTP test
-
-on:
-  workflow_dispatch:    # Manual trigger button
-  schedule:
-    - cron: "*/30 * * * *"
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
     - name: Test FTP + lftp
       env:
         FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
@@ -18,4 +5,8 @@ jobs:
         sudo apt update
         sudo apt install -y lftp
         echo "Testing FTP connection..."
-        lftp -u mdmunazir,"$FTP_PASSWORD" halaqaat.linuxproguru.com -e "ls; quit"
+        lftp -u mdmunazir,"$FTP_PASSWORD" halaqaat.linuxproguru.com -e "
+          set ssl:verify-certificate false;
+          ls;
+          quit
+        "

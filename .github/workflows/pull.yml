@@ -1,15 +1,13 @@
-      - name: Mirror /tasks from FTP → repo
+            - name: Mirror /tasks from FTP → repo
         run: |
-          lftp -u "mdmunazir","${FTP_PASSWORD}" "halaqaat.linuxproguru.com" << 'EOF'
+          lftp "ftp://halaqaat.linuxproguru.com" -u "mdmunazir","${FTP_PASSWORD}" << 'EOF'
           set ssl:verify-certificate no
           mirror \
             --verbose \
             --only-newer \
             --delete \
-            /www/halaqaat.linuxproguru.com/tasks ./tasks
+            /tasks ./tasks
           quit
           EOF
-
-
         env:
           FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
